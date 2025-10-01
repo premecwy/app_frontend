@@ -4,12 +4,12 @@
     <header class="topbar">
       <div class="container">
         <div class="topbar-content">
-          <button class="circle-btn" aria-label="settings" @click="go('/settings')">
+          <!-- <button class="circle-btn" aria-label="settings" @click="go('/settings')">
             <svg viewBox="0 0 24 24" width="22" height="22">
               <path fill="currentColor"
                 d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm9.4 3.5c0-.47-.03-.93-.1-1.38l2.02-1.57-2-3.46-2.47 1a7.7 7.7 0 0 0-2.38-1.38l-.37-2.6h-4.84l-.37 2.6a7.7 7.7 0 0 0-2.38 1.38l-2.47-1-2 3.46 2.02 1.57c-.07.45-.1.91-.1 1.38s.03.93.1 1.38L1.68 15l2 3.46 2.47-1a7.7 7.7 0 0 0 2.38 1.38l.37 2.6h4.84l.37-2.6a7.7 7.7 0 0 0 2.38-1.38l2.47 1 2-3.46-2.02-1.57c.07-.45.1-.91.1-1.38Z"/>
             </svg>
-          </button>
+          </button> -->
 
           <div class="spacer"></div>
 

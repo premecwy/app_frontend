@@ -139,8 +139,8 @@
   </div>
   </template>
   
-<script setup lang="ts">
-import { ref, computed } from 'vue'
+  <script setup lang="ts">
+  import { ref, computed } from 'vue'
   
   const API_BASE = (import.meta as any).env.VITE_API_BASE || ''
   

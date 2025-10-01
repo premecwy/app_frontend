@@ -11,101 +11,43 @@
           </button>
           <h1 class="page-title">LUMA Talk</h1>
           <div class="spacer"></div>
-          <button class="settings-btn" @click="showSettings = !showSettings" :aria-pressed="showSettings" aria-label="Settings">
-            <svg viewBox="0 0 24 24" width="20" height="20">
-              <path fill="currentColor" d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.22,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.22,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/>
+          <button class="settings-btn" @click="showTextArea = !showTextArea" :aria-pressed="showTextArea" aria-label="Keyboard">
+            <svg viewBox="0 0 24 24" width="28" height="28">
+              <path fill="currentColor" d="M20 5H4C2.9 5 2 5.9 2 7V17C2 18.1 2.9 19 4 19H20C21.1 19 22 18.1 22 17V7C22 5.9 21.1 5 20 5M20 17H4V7H20V17M5 8H7V10H5V8M8 8H10V10H8V8M11 8H13V10H11V8M14 8H16V10H14V8M17 8H19V10H17V8M5 11H7V13H5V11M8 11H10V13H8V11M11 11H13V13H11V11M14 11H16V13H14V11M17 11H19V13H17V11M8 14H16V16H8V14Z"/>
             </svg>
           </button>
         </div>
       </div>
     </header>
 
-    <!-- Settings Popup -->
-    <div v-if="showSettings" class="popup-container">
-        <div class="popup-header">
-          <h3 class="popup-title">API Configuration</h3>
-          <button class="close-btn" @click="showSettings = false" aria-label="Close settings">
-            <svg viewBox="0 0 24 24" width="16" height="16">
-              <path fill="currentColor" d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
-            </svg>
-          </button>
-        </div>
-        
-        <div class="popup-content">
-          <div class="form-group">
-            <label class="form-label">API URL</label>
-            <input v-model.trim="url" class="form-input" placeholder="http://127.0.0.1:8000/chat" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">Payload Key</label>
-            <input v-model.trim="payloadKey" class="form-input" placeholder="text" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">Timeout (ms)</label>
-            <input v-model.number="timeoutMs" class="form-input" type="number" min="1000" step="500" placeholder="15000" />
-          </div>
-        </div>
-        
-        <div class="popup-footer">
-          <button class="btn-test" @click="testConnection" :disabled="loading">
-            <span v-if="loading" class="loading-spinner"></span>
-            {{ loading ? 'Testing...' : 'Test Connection' }}
-          </button>
-        </div>
-    </div>
-  
-
     <main class="page">
       <div class="container">
-        <!-- Enhanced Chat Section -->
-        <section class="chat-section card">
-          <div class="chat-messages" ref="scrollArea">
-            <div v-if="messages.length === 0" class="empty-state">
-              <div class="empty-icon">💬</div>
-              <h3>Start a conversation</h3>
-              <p>Ask me anything or start chatting with your API</p>
-            </div>
-            
-            <div v-for="m in messages" :key="m.id" class="message-row" :class="m.role">
-              <div class="message-bubble">
-                <div class="message-content">{{ m.text }}</div>
-              </div>
-      </div>
-            
-            <div v-if="loading" class="message-row bot">
-              <div class="message-bubble loading">
-                <div class="typing-indicator">
-                  <span></span>
-                  <span></span>
-                  <span></span>
-                </div>
-                <span class="loading-text">Thinking...</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Enhanced Composer -->
-          <div class="composer-container">
-    <form class="composer" @submit.prevent="handleSend">
-              <div class="input-wrapper">
-      <input
-        ref="inputEl"
-        v-model.trim="draft"
-        type="text"
-                  class="composer-input"
-        autocomplete="off"
-        spellcheck="false"
-                  placeholder="Type your message..."
-                />
-                <button type="submit" class="send-btn" :disabled="!canSend || loading">
+        <!-- Big Dog Emoji -->
+        <div class="dog-container">
+          <div class="big-dog" :class="{ shake: isShaking }" @click="handleDogClick">🐶</div>
+          
+          <!-- Text Area (shown when keyboard is clicked) -->
+          <transition name="slide-up">
+            <div v-if="showTextArea" class="text-area-container">
+              <textarea 
+                v-model="messageText"
+                class="message-input"
+                placeholder="Type your message here..."
+                rows="2"
+                @keyup.enter.ctrl="sendMessage"
+              ></textarea>
+              <div class="text-area-actions">
+                <button class="btn-send" @click="sendMessage" :disabled="!messageText.trim()" style="display: flex !important;">
                   <svg viewBox="0 0 24 24" width="20" height="20">
                     <path fill="currentColor" d="M2,21L23,12L2,3V10L17,12L2,14V21Z"/>
                   </svg>
+                  Send
                 </button>
+                <button class="btn-clear" @click="messageText = ''" style="display: flex !important;">Clear</button>
               </div>
-    </form>
-          </div>
-        </section>
+            </div>
+          </transition>
+        </div>
       </div>
     </main>
   </div>
@@ -126,12 +68,28 @@ export default {
       draft: '',
       loading: false,
       messages: [], // { id, role: 'user'|'bot', text }
+      isShaking: false,
+      showTextArea: false,
+      messageText: '',
     }
   },
   computed: {
     canSend() { return this.draft.trim().length > 0 }
   },
   methods: {
+    handleDogClick() {
+      this.isShaking = true;
+      setTimeout(() => {
+        this.isShaking = false;
+      }, 500);
+    },
+    sendMessage() {
+      if (this.messageText.trim()) {
+        console.log('Sending message:', this.messageText);
+        // Add your message sending logic here
+        this.messageText = '';
+      }
+    },
     persist() {
       localStorage.setItem('chat_url', this.url)
       localStorage.setItem('chat_key', this.payloadKey)
@@ -620,21 +578,218 @@ export default {
 }
 
 /* Chat Section */
-.chat-section {
+/* Dog Container */
+.dog-container {
   display: flex;
   flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
   height: calc(100vh - 150px);
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-  border: 2px solid var(--sage);
+  width: 100%;
+  padding: 20px;
 }
 
-.chat-messages {
-  flex: 1;
-  overflow-y: auto;
-  padding: 20px;
+.big-dog {
+  font-size: clamp(150px, 25vw, 300px);
+  line-height: 1;
+  user-select: none;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+  animation: float 3s ease-in-out infinite;
+}
+
+.big-dog:hover {
+  transform: scale(1.1);
+}
+
+.big-dog:active {
+  transform: scale(0.95);
+}
+
+/* Shake Animation */
+.big-dog.shake {
+  animation: shake 0.6s cubic-bezier(0.36, 0.07, 0.19, 0.97) both, vibrate 0.6s ease-in-out;
+}
+
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0) rotate(0deg) scale(1);
+  }
+  10%, 30%, 50%, 70%, 90% {
+    transform: translateX(-15px) rotate(-5deg) scale(1.1);
+  }
+  20%, 40%, 60%, 80% {
+    transform: translateX(15px) rotate(5deg) scale(1.1);
+  }
+}
+
+@keyframes pulse {
+  0% {
+    filter: drop-shadow(0 0 0 rgba(105, 132, 116, 0.9)) brightness(1);
+  }
+  50% {
+    filter: drop-shadow(0 0 40px rgba(105, 132, 116, 0.6)) brightness(1.3);
+  }
+  100% {
+    filter: drop-shadow(0 0 0 rgba(105, 132, 116, 0)) brightness(1);
+  }
+}
+
+@keyframes vibrate {
+  0%, 100% {
+    transform: translate(0, 0);
+  }
+  10% {
+    transform: translate(-2px, 2px);
+  }
+  20% {
+    transform: translate(2px, -2px);
+  }
+  30% {
+    transform: translate(-2px, -2px);
+  }
+  40% {
+    transform: translate(2px, 2px);
+  }
+  50% {
+    transform: translate(-2px, 2px);
+  }
+  60% {
+    transform: translate(2px, -2px);
+  }
+  70% {
+    transform: translate(-2px, -2px);
+  }
+  80% {
+    transform: translate(2px, 2px);
+  }
+  90% {
+    transform: translate(-2px, 2px);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-15px);
+  }
+}
+
+/* Text Area Container */
+.text-area-container {
+  width: 100%;
+  max-width: 700px;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border: 3px solid var(--sage);
+  border-radius: 24px;
+  padding: 24px;
+  box-shadow: var(--shadow-lg);
+  animation: slideUp 0.3s ease-out;
+}
+
+.message-input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid rgba(105, 132, 116, 0.3);
+  border-radius: 16px;
+  font-size: 16px;
+  font-family: inherit;
+  color: var(--textDark);
+  background: white;
+  resize: vertical;
+  min-height: 60px;
+  transition: all 0.3s ease;
+}
+
+.message-input:focus {
+  outline: none;
+  border-color: var(--sage);
+  box-shadow: 0 0 0 4px rgba(105, 132, 116, 0.15);
+}
+
+.message-input::placeholder {
+  color: var(--muted);
+}
+
+.text-area-actions {
   display: flex;
-  flex-direction: column;
-  gap: 16px;
+  gap: 12px;
+  margin-top: 16px;
+  justify-content: center;
+  align-items: center;
+}
+
+.btn-send,
+.btn-clear {
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 2px solid;
+}
+
+.btn-send {
+  background: linear-gradient(135deg, var(--sage) 0%, var(--sageLight) 100%);
+  color: white;
+  border-color: var(--sage);
+}
+
+.btn-send:hover:not(:disabled) {
+  background: linear-gradient(135deg, var(--sageLight) 0%, #5a7a6a 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(105, 132, 116, 0.3);
+}
+
+.btn-send:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-clear {
+  background: transparent;
+  color: var(--muted);
+  border-color: rgba(105, 132, 116, 0.3);
+}
+
+.btn-clear:hover {
+  background: rgba(105, 132, 116, 0.1);
+  border-color: var(--sage);
+  color: var(--sage);
+}
+
+/* Slide Up Transition */
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: all 0.3s ease;
+}
+
+.slide-up-enter-from {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.slide-up-leave-to {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Empty State */

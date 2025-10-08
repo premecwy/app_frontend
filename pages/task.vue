@@ -257,7 +257,7 @@ type Task = {
   done?: boolean;
 };
 
-const API_BASE = (import.meta as any).env?.VITE_API_BASE?.replace(/\/+$/, "") || "";
+const API_BASE = (import.meta as any).env?.VITE_API_BASE?.replace(/\/+$/, "") || "http://localhost:8080";
 const api = (path = "") => `${API_BASE}/api/tasks${path}`;
 
 const tasks = ref<Task[]>([]);

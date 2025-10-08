@@ -58,44 +58,151 @@ export default {
   name: 'LlmPage',
   data() {
     return {
-      // persisted config
-      url: localStorage.getItem('chat_url') || 'http://127.0.0.1:8000/chat',
+      url: localStorage.getItem('chat_url') || 'http://127.0.0.1:8080/chat',
       payloadKey: localStorage.getItem('chat_key') || 'text',
       timeoutMs: Number(localStorage.getItem('chat_timeout') || 15000),
       showSettings: false,
-
-      // state
       draft: '',
       loading: false,
-      messages: [], // { id, role: 'user'|'bot', text }
+      messages: [],
       isShaking: false,
       showTextArea: false,
       messageText: '',
     }
   },
   computed: {
-    canSend() { return this.draft.trim().length > 0 }
+    canSend() {
+      return this.draft.trim().length > 0
+    },
   },
   methods: {
-    handleDogClick() {
-      this.isShaking = true;
-      setTimeout(() => {
-        this.isShaking = false;
-      }, 500);
-    },
-    sendMessage() {
-      if (this.messageText.trim()) {
-        console.log('Sending message:', this.messageText);
-        // Add your message sending logic here
-        this.messageText = '';
+    async handleDogClick() {
+      this.isShaking = true
+      setTimeout(() => (this.isShaking = false), 1000)
+
+      if (!this.mediaRecorder) this.mediaRecorder = null
+      if (!this.isRecording) this.isRecording = false
+
+      if (!this.isRecording) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+          this.mediaRecorder = new MediaRecorder(stream)
+          let chunks = []
+
+          this.mediaRecorder.ondataavailable = (e) => {
+            console.log('📦 chunk received:', e.data.size)
+            chunks.push(e.data)
+          }
+
+          this.mediaRecorder.onstop = async () => {
+            console.log('🛑 onstop called')
+            const audioBlob = new Blob(chunks, { type: 'audio/wav' })
+            chunks = []
+            console.log('🎧 audio blob size:', audioBlob.size)
+
+            try {
+              const formData = new FormData()
+              formData.append('file', audioBlob, 'audio.wav')
+              console.log('🚀 sending to STT API...')
+
+              const sttRes = await fetch('http://127.0.0.1:8080/stt', {
+                method: 'POST',
+                body: formData,
+              })
+
+              console.log('✅ STT response status:', sttRes.status)
+              const data = await sttRes.json()
+              console.log('🗣️ STT result:', data)
+
+              try {
+                const text = data.text || ''
+                const reply = data.reply || ''
+
+                if (text) {
+                  this.messageText = text
+                  console.log('💬 recognized text:', text)
+
+                  if (reply) {
+                    console.log('🤖 LLM replied:', reply)
+                    // 🎧 เรียก TTS ให้พูดข้อความตอบกลับ
+                    try {
+                         const ttsFormData = new FormData()
+                         ttsFormData.append("text", reply)
+
+                         const ttsRes = await fetch("http://localhost:8080/tts", {
+                              method: "POST",
+                              body: ttsFormData,
+                         })
+
+                         const blob = await ttsRes.blob()
+                         const url = URL.createObjectURL(new Blob([blob], { type: 'audio/wav' }))
+                         const audio = new Audio(url)
+                         audio.autoplay = true
+                         console.log("🔊 Played TTS:", reply)
+                    } catch (ttsErr) {
+                         console.warn("⚠️ TTS Error:", ttsErr)
+                    }
+
+                    this.messages.push({ role: 'assistant', content: reply })
+                  } else {
+                    console.log('🟡 No LLM reply found in STT result')
+                  }
+                } else {
+                  alert('STT returned no text')
+                }
+              } catch (e) {
+                console.error('❌ STT error:', e)
+              }
+            } catch (err) {
+              console.error('Mic error:', err)
+              alert('Cannot access microphone.')
+            }
+          }
+
+          this.mediaRecorder.start()
+          this.isRecording = true
+          console.log('🎙️ recording started...')
+
+          const micBtn = document.querySelector('.mic-btn')
+          if (micBtn) {
+            micBtn.addEventListener('touchend', () => {
+              if (this.isRecording && this.mediaRecorder.state === 'recording') {
+                console.log('📱 touchend detected, stopping...')
+                this.mediaRecorder.stop()
+                this.isRecording = false
+              }
+            })
+          }
+        } catch (err) {
+          console.error('Mic error:', err)
+          alert('Cannot access microphone.')
+        }
+      } else {
+        console.log('🔁 stopping recording...')
+        if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
+          this.mediaRecorder.stop()
+        }
+        this.isRecording = false
       }
     },
+
+    sendMessage() {
+      if (this.messageText.trim()) {
+        console.log('Sending message:', this.messageText)
+        this.messageText = ''
+      }
+    },
+
     persist() {
       localStorage.setItem('chat_url', this.url)
       localStorage.setItem('chat_key', this.payloadKey)
       localStorage.setItem('chat_timeout', String(this.timeoutMs))
     },
-    uid() { return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2) },
+
+    uid() {
+      return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2)
+    },
+
     push(role, text) {
       this.messages.push({ id: this.uid(), role, text: String(text) })
       this.$nextTick(() => {
@@ -173,6 +280,21 @@ export default {
             }
           }
 
+          // 🔊 เพิ่มบล็อกนี้หลัง retry block
+          try {
+            const formData = new FormData()
+            formData.append("text", q)
+            const ttsRes = await fetch("http://127.0.0.1:8080/tts", {
+              method: "POST",
+              body: formData
+            })
+            const blob = await ttsRes.blob()
+            const url = URL.createObjectURL(blob)
+            new Audio(url).play()
+          } catch (ttsErr) {
+            console.warn("TTS Error:", ttsErr)
+          }
+
           throw new Error('HTTP ' + res.status + ' ' + res.statusText + (bodyText ? '\n\n' + bodyText : ''))
         }
 
@@ -184,7 +306,7 @@ export default {
           const u = new URL(this.url)
           if (location.protocol === 'https:' && u.protocol === 'http:') hints.push('Mixed content: page is HTTPS but API is HTTP.')
         } catch (er) {}
-        hints.push('CORS: enable on FastAPI (allow_origins=["*"], methods=["*"], headers=["*"]).')
+        hints.push('CORS: enable on FastAPI (allow_origins=[\"*\"], methods=[\"*\"], headers=[\"*\"]).')
         hints.push('Check server is running and path is correct.')
         hints.push('Timeout: ' + this.timeoutMs + 'ms')
         throw new Error((e && e.message ? e.message : String(e)) + '\n\nHints:\n- ' + hints.join('\n- '))

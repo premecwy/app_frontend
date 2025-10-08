@@ -93,7 +93,9 @@ import { useRouter } from "vue-router";
 
 const router = useRouter();
 const user = ref(null);
-const token = ref("");
+const firebaseToken = ref("");
+const accessToken = ref("");
+const refreshToken = ref("");
 
 function go() {
   router.push("/");
@@ -109,12 +111,28 @@ async function loginGoogle() {
       email: result.user.email,
     };
 
-    token.value = await result.user.getIdToken();
-    console.log("✅ Firebase ID Token:", token.value);
+    // ✅ ได้ Firebase token
+    firebaseToken.value = await result.user.getIdToken();
+    console.log("✅ Firebase ID Token:", firebaseToken.value);
 
-    // เก็บ localStorage
+    // ✅ ส่งไป backend แลก access/refresh token
+    const res = await fetch("http://localhost:8000/auth/login-google", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ firebase_token: firebaseToken.value }),
+    });
+
+    if (!res.ok) throw new Error("Backend login failed");
+    const data = await res.json();
+
+    accessToken.value = data.access_token;
+    refreshToken.value = data.refresh_token;
+
+    // ✅ เก็บทั้งหมดใน localStorage
     localStorage.setItem("user_profile", JSON.stringify(user.value));
-    localStorage.setItem("auth_token", token.value);
+    localStorage.setItem("firebase_token", firebaseToken.value);
+    localStorage.setItem("access_token", accessToken.value);
+    localStorage.setItem("refresh_token", refreshToken.value);
   } catch (err) {
     console.error("❌ Login failed:", err);
   }
@@ -122,19 +140,30 @@ async function loginGoogle() {
 
 function logout() {
   user.value = null;
-  token.value = "";
+  firebaseToken.value = "";
+  accessToken.value = "";
+  refreshToken.value = "";
+
   localStorage.removeItem("user_profile");
-  localStorage.removeItem("auth_token");
+  localStorage.removeItem("firebase_token");
+  localStorage.removeItem("access_token");
+  localStorage.removeItem("refresh_token");
 }
 
-// โหลด state เก่า (ถ้ามี)
+// ✅ โหลด state เก่า
 const savedUser = localStorage.getItem("user_profile");
-const savedToken = localStorage.getItem("auth_token");
-if (savedUser && savedToken) {
+const savedFirebase = localStorage.getItem("firebase_token");
+const savedAccess = localStorage.getItem("access_token");
+const savedRefresh = localStorage.getItem("refresh_token");
+
+if (savedUser && savedFirebase) {
   user.value = JSON.parse(savedUser);
-  token.value = savedToken;
+  firebaseToken.value = savedFirebase;
+  accessToken.value = savedAccess || "";
+  refreshToken.value = savedRefresh || "";
 }
 </script>
+
 
 <style scoped>
 :root {

@@ -115,6 +115,7 @@ export default {
               console.log('🗣️ STT result:', data)
 
               try {
+                // ส่วนที่คุณส่งมา (ห้ามลบ)
                 const text = data.text || ''
                 const reply = data.reply || ''
 
@@ -122,30 +123,51 @@ export default {
                   this.messageText = text
                   console.log('💬 recognized text:', text)
 
+                  // เช็คว่ามีคำตอบจาก AI หรือไม่
                   if (reply) {
-                    console.log('🤖 LLM replied:', reply)
-                    // 🎧 เรียก TTS ให้พูดข้อความตอบกลับ
+
+                    //  👇 วางโค้ด TTS ที่แก้ไขแล้วไว้ตรงนี้ 👇
                     try {
-                         const ttsFormData = new FormData()
-                         ttsFormData.append("text", reply)
+                          console.log('🤖 LLM replied:', reply);
+                          console.log('▶️ Requesting TTS from server...');
 
-                         const ttsRes = await fetch("http://localhost:8080/tts", {
-                              method: "POST",
-                              body: ttsFormData,
-                         })
+                          const ttsRes = await fetch("http://localhost:8080/tts", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                      message: reply,
+                                }),
+                          });
 
-                         const blob = await ttsRes.blob()
-                         const url = URL.createObjectURL(new Blob([blob], { type: 'audio/wav' }))
-                         const audio = new Audio(url)
-                         audio.autoplay = true
-                         console.log("🔊 Played TTS:", reply)
+                          if (!ttsRes.ok) {
+                                throw new Error(`TTS server responded with status ${ttsRes.status}`);
+                          }
+
+                          const audioBlob = await ttsRes.blob();
+                          console.log('✅ Received audio blob size:', audioBlob.size);
+
+                          const audioUrl = URL.createObjectURL(audioBlob);
+                          const audio = new Audio(audioUrl);
+
+                          audio.play();
+                          console.log("🔊 Playing TTS audio for:", reply);
+
+                          audio.onended = () => {
+                                URL.revokeObjectURL(audioUrl);
+                                console.log("✅ Audio finished, Object URL revoked.");
+                          };
+                          
+                          audio.onerror = (e) => {
+                                console.error("❌ Error playing audio:", e);
+                                URL.revokeObjectURL(audioUrl);
+                          };
+
+                          this.messages.push({ role: 'assistant', content: reply });
+
                     } catch (ttsErr) {
-                         console.warn("⚠️ TTS Error:", ttsErr)
+                          console.warn("⚠️ TTS Error:", ttsErr)
                     }
-
-                    this.messages.push({ role: 'assistant', content: reply })
-                  } else {
-                    console.log('🟡 No LLM reply found in STT result')
+                    //  👆 สิ้นสุดโค้ดส่วน TTS 👆
                   }
                 } else {
                   alert('STT returned no text')

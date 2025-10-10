@@ -1,19 +1,20 @@
 <template>
   <div class="llm-page">
-    <!-- Enhanced Top bar -->
     <header class="topbar">
       <div class="container">
         <div class="topbar-content">
           <button class="back-btn" @click="$router.back()" aria-label="Go back">
             <svg viewBox="0 0 24 24" width="20" height="20">
-              <path fill="currentColor" d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+              <path fill="currentColor" d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
             </svg>
           </button>
           <h1 class="page-title">LUMA Talk</h1>
           <div class="spacer"></div>
-          <button class="settings-btn" @click="showTextArea = !showTextArea" :aria-pressed="showTextArea" aria-label="Keyboard">
+          <button class="settings-btn" @click="showTextArea = !showTextArea" :aria-pressed="showTextArea"
+            aria-label="Keyboard">
             <svg viewBox="0 0 24 24" width="28" height="28">
-              <path fill="currentColor" d="M20 5H4C2.9 5 2 5.9 2 7V17C2 18.1 2.9 19 4 19H20C21.1 19 22 18.1 22 17V7C22 5.9 21.1 5 20 5M20 17H4V7H20V17M5 8H7V10H5V8M8 8H10V10H8V8M11 8H13V10H11V8M14 8H16V10H14V8M17 8H19V10H17V8M5 11H7V13H5V11M8 11H10V13H8V11M11 11H13V13H11V11M14 11H16V13H14V11M17 11H19V13H17V11M8 14H16V16H8V14Z"/>
+              <path fill="currentColor"
+                d="M20 5H4C2.9 5 2 5.9 2 7V17C2 18.1 2.9 19 4 19H20C21.1 19 22 18.1 22 17V7C22 5.9 21.1 5 20 5M20 17H4V7H20V17M5 8H7V10H5V8M8 8H10V10H8V8M11 8H13V10H11V8M14 8H16V10H14V8M17 8H19V10H17V8M5 11H7V13H5V11M8 11H10V13H8V11M11 11H13V13H11V11M14 11H16V13H14V11M17 11H19V13H17V11M8 14H16V16H8V14Z" />
             </svg>
           </button>
         </div>
@@ -22,24 +23,18 @@
 
     <main class="page">
       <div class="container">
-        <!-- Big Dog Emoji -->
         <div class="dog-container">
           <div class="big-dog" :class="{ shake: isShaking }" @click="handleDogClick">🐶</div>
-          
-          <!-- Text Area (shown when keyboard is clicked) -->
+
           <transition name="slide-up">
             <div v-if="showTextArea" class="text-area-container">
-              <textarea 
-                v-model="messageText"
-                class="message-input"
-                placeholder="Type your message here..."
-                rows="2"
-                @keyup.enter.ctrl="sendMessage"
-              ></textarea>
+              <textarea v-model="messageText" class="message-input" placeholder="Type your message here..." rows="2"
+                @keyup.enter.ctrl="sendMessage"></textarea>
               <div class="text-area-actions">
-                <button class="btn-send" @click="sendMessage" :disabled="!messageText.trim()" style="display: flex !important;">
+                <button class="btn-send" @click="sendMessage" :disabled="!messageText.trim()"
+                  style="display: flex !important;">
                   <svg viewBox="0 0 24 24" width="20" height="20">
-                    <path fill="currentColor" d="M2,21L23,12L2,3V10L17,12L2,14V21Z"/>
+                    <path fill="currentColor" d="M2,21L23,12L2,3V10L17,12L2,14V21Z" />
                   </svg>
                   Send
                 </button>
@@ -58,9 +53,9 @@ export default {
   name: 'LlmPage',
   data() {
     return {
-      url: localStorage.getItem('chat_url') || 'http://127.0.0.1:8080/chat',
+      url: localStorage.getItem('chat_url') || 'http://127.0.0.1:8000/chat',
       payloadKey: localStorage.getItem('chat_key') || 'text',
-      timeoutMs: Number(localStorage.getItem('chat_timeout') || 15000),
+      timeoutMs: Number(localStorage.getItem('chat_timeout') || 1000000),
       showSettings: false,
       draft: '',
       loading: false,
@@ -68,288 +63,271 @@ export default {
       isShaking: false,
       showTextArea: false,
       messageText: '',
+      mediaRecorder: null,
+      isRecording: false,
     }
   },
   computed: {
     canSend() {
-      return this.draft.trim().length > 0
+      // Adjusted to use the correct data property for the text area
+      return this.messageText.trim().length > 0;
     },
   },
   methods: {
     async handleDogClick() {
-      this.isShaking = true
-      setTimeout(() => (this.isShaking = false), 1000)
+      this.isShaking = true;
+      setTimeout(() => (this.isShaking = false), 1000);
 
-      if (!this.mediaRecorder) this.mediaRecorder = null
-      if (!this.isRecording) this.isRecording = false
+      if (this.isRecording) {
+        if (this.mediaRecorder && this.mediaRecorder.state === "recording") {
+          this.mediaRecorder.stop();
+        }
+        this.isRecording = false;
+        console.log("🔁 stopping recording...");
+        return;
+      }
 
-      if (!this.isRecording) {
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-          this.mediaRecorder = new MediaRecorder(stream)
-          let chunks = []
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        this.mediaRecorder = new MediaRecorder(stream);
+        let chunks = [];
 
-          this.mediaRecorder.ondataavailable = (e) => {
-            console.log('📦 chunk received:', e.data.size)
-            chunks.push(e.data)
+        this.mediaRecorder.ondataavailable = (e) => {
+          console.log("📦 chunk received:", e.data.size);
+          chunks.push(e.data);
+        };
+
+        this.mediaRecorder.onstop = async () => {
+          console.log("🛑 onstop called");
+          const audioBlob = new Blob(chunks, { type: "audio/wav" });
+          chunks = [];
+          console.log("🎧 audio blob size:", audioBlob.size);
+
+          if (audioBlob.size === 0) {
+            console.warn("⚠️ Audio blob is empty, not sending.");
+            return;
           }
 
-          this.mediaRecorder.onstop = async () => {
-            console.log('🛑 onstop called')
-            const audioBlob = new Blob(chunks, { type: 'audio/wav' })
-            chunks = []
-            console.log('🎧 audio blob size:', audioBlob.size)
+          try {
+            const formData = new FormData();
+            formData.append("file", audioBlob, "audio.wav");
+            console.log("🚀 sending to STT API...");
 
-            try {
-              const formData = new FormData()
-              formData.append('file', audioBlob, 'audio.wav')
-              console.log('🚀 sending to STT API...')
+            const sttRes = await fetch("http://127.0.0.1:8000/stt", {
+              method: "POST",
+              body: formData,
+            });
 
-              const sttRes = await fetch('http://127.0.0.1:8080/stt', {
-                method: 'POST',
-                body: formData,
-              })
+            if (!sttRes.ok) throw new Error(`STT server error! status: ${sttRes.status}`);
+            const sttData = await sttRes.json();
+            const recognizedText = sttData.text;
 
-              console.log('✅ STT response status:', sttRes.status)
-              const data = await sttRes.json()
-              console.log('🗣️ STT result:', data)
+            if (recognizedText) {
+              console.log("💬 recognized text:", recognizedText);
+              this.messages.push({ role: 'user', content: recognizedText });
 
-              try {
-                // ส่วนที่คุณส่งมา (ห้ามลบ)
-                const text = data.text || ''
-                const reply = data.reply || ''
+              console.log('🚀 Sending to /chat API...');
+              const chatReply = await this.callApi(recognizedText);
+              this.messages.push({ role: 'assistant', content: chatReply });
+              console.log("🤖 LLM replied:", chatReply);
 
-                if (text) {
-                  this.messageText = text
-                  console.log('💬 recognized text:', text)
+              if (chatReply) {
+                try {
+                  console.log("▶️ Requesting TTS from server...");
+                  const ttsRes = await fetch("http://localhost:8000/tts", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ message: chatReply }),
+                  });
+                  if (!ttsRes.ok) throw new Error(`TTS server responded with status ${ttsRes.status}`);
 
-                  // เช็คว่ามีคำตอบจาก AI หรือไม่
-                  if (reply) {
+                  const ttsAudioBlob = await ttsRes.blob();
+                  const audioUrl = URL.createObjectURL(ttsAudioBlob);
+                  const audio = new Audio(audioUrl);
+                  audio.play();
+                  audio.onended = () => URL.revokeObjectURL(audioUrl);
+                  console.log("🔊 Playing TTS audio for:", chatReply);
 
-                    //  👇 วางโค้ด TTS ที่แก้ไขแล้วไว้ตรงนี้ 👇
-                    try {
-                          console.log('🤖 LLM replied:', reply);
-                          console.log('▶️ Requesting TTS from server...');
-
-                          const ttsRes = await fetch("http://localhost:8080/tts", {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({
-                                      message: reply,
-                                }),
-                          });
-
-                          if (!ttsRes.ok) {
-                                throw new Error(`TTS server responded with status ${ttsRes.status}`);
-                          }
-
-                          const audioBlob = await ttsRes.blob();
-                          console.log('✅ Received audio blob size:', audioBlob.size);
-
-                          const audioUrl = URL.createObjectURL(audioBlob);
-                          const audio = new Audio(audioUrl);
-
-                          audio.play();
-                          console.log("🔊 Playing TTS audio for:", reply);
-
-                          audio.onended = () => {
-                                URL.revokeObjectURL(audioUrl);
-                                console.log("✅ Audio finished, Object URL revoked.");
-                          };
-                          
-                          audio.onerror = (e) => {
-                                console.error("❌ Error playing audio:", e);
-                                URL.revokeObjectURL(audioUrl);
-                          };
-
-                          this.messages.push({ role: 'assistant', content: reply });
-
-                    } catch (ttsErr) {
-                          console.warn("⚠️ TTS Error:", ttsErr)
-                    }
-                    //  👆 สิ้นสุดโค้ดส่วน TTS 👆
-                  }
-                } else {
-                  alert('STT returned no text')
+                } catch (ttsErr) {
+                  console.warn("⚠️ TTS Error:", ttsErr);
                 }
-              } catch (e) {
-                console.error('❌ STT error:', e)
               }
-            } catch (err) {
-              console.error('Mic error:', err)
-              alert('Cannot access microphone.')
+            } else {
+              alert("STT returned no text");
             }
+          } catch (err) {
+            console.error("❌ Error in onstop handler:", err);
+            alert(`An error occurred: ${err.message}`);
           }
+        };
 
-          this.mediaRecorder.start()
-          this.isRecording = true
-          console.log('🎙️ recording started...')
+        this.mediaRecorder.start();
+        this.isRecording = true;
+        console.log("🎙️ recording started...");
 
-          const micBtn = document.querySelector('.mic-btn')
-          if (micBtn) {
-            micBtn.addEventListener('touchend', () => {
-              if (this.isRecording && this.mediaRecorder.state === 'recording') {
-                console.log('📱 touchend detected, stopping...')
-                this.mediaRecorder.stop()
-                this.isRecording = false
-              }
-            })
-          }
-        } catch (err) {
-          console.error('Mic error:', err)
-          alert('Cannot access microphone.')
-        }
-      } else {
-        console.log('🔁 stopping recording...')
-        if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
-          this.mediaRecorder.stop()
-        }
-        this.isRecording = false
+      } catch (err) {
+        console.error("Mic error:", err);
+        alert("Cannot access microphone.");
       }
     },
 
-    sendMessage() {
-      if (this.messageText.trim()) {
-        console.log('Sending message:', this.messageText)
-        this.messageText = ''
+    async sendMessage() {
+      const q = this.messageText.trim();
+      if (!q) return;
+
+      this.messages.push({ role: 'user', content: q });
+      this.messageText = '';
+      this.loading = true;
+
+      try {
+        const reply = await this.callApi(q);
+        this.messages.push({ role: 'assistant', content: reply });
+      } catch (e) {
+        this.messages.push({ role: 'assistant', content: 'Request failed: ' + (e && e.message ? e.message : String(e)) });
+      } finally {
+        this.loading = false;
       }
     },
 
     persist() {
-      localStorage.setItem('chat_url', this.url)
-      localStorage.setItem('chat_key', this.payloadKey)
-      localStorage.setItem('chat_timeout', String(this.timeoutMs))
+      localStorage.setItem('chat_url', this.url);
+      localStorage.setItem('chat_key', this.payloadKey);
+      localStorage.setItem('chat_timeout', String(this.timeoutMs));
     },
 
     uid() {
-      return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2)
+      return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
     },
 
     push(role, text) {
-      this.messages.push({ id: this.uid(), role, text: String(text) })
+      this.messages.push({ id: this.uid(), role, text: String(text) });
       this.$nextTick(() => {
-        const el = this.$refs.scrollArea
-        if (el) el.scrollTop = el.scrollHeight
-      })
+        const el = this.$refs.scrollArea;
+        if (el) el.scrollTop = el.scrollHeight;
+      });
     },
+
     pickAnswer(obj) {
       if (obj && typeof obj === 'object') {
-        // รองรับรูปแบบทั่วไป
-        if ('massage' in obj && obj.massage != null) return String(obj.massage)
-        if ('message' in obj && obj.message != null) return String(obj.message)
-        if ('response' in obj && obj.response != null) return String(obj.response)
-        if ('answer' in obj && obj.answer != null) return String(obj.answer)
-        if ('text' in obj && obj.text != null) return String(obj.text)
-        if ('output' in obj && obj.output != null) return String(obj.output)
-        const c = Array.isArray(obj.choices) && obj.choices[0]
-        if (c?.message?.content != null) return String(c.message.content)
-        if (c?.text != null) return String(c.text)
-        try { return JSON.stringify(obj, null, 2) } catch { return String(obj) }
+        if ('message' in obj && obj.message != null) return String(obj.message);
+        if ('response' in obj && obj.response != null) return String(obj.response);
+        if ('answer' in obj && obj.answer != null) return String(obj.answer);
+        if ('text' in obj && obj.text != null) return String(obj.text);
+        if ('output' in obj && obj.output != null) return String(obj.output);
+        const c = Array.isArray(obj.choices) && obj.choices[0];
+        if (c?.message?.content != null) return String(c.message.content);
+        if (c?.text != null) return String(c.text);
+        try {
+          return JSON.stringify(obj, null, 2);
+        } catch {
+          return String(obj);
+        }
       }
-      return String(obj ?? '')
+      return String(obj ?? '');
     },
+
     controllerWithTimeout(ms) {
-      const ctrl = new AbortController()
+      const ctrl = new AbortController();
       const id = setTimeout(() => {
-        try { ctrl.abort(new DOMException('Timeout', 'AbortError')) } catch (e) { ctrl.abort() }
-      }, ms)
-      return { ctrl, cancel: () => clearTimeout(id) }
+        try {
+          ctrl.abort(new DOMException('Timeout', 'AbortError'));
+        } catch (e) {
+          ctrl.abort();
+        }
+      }, ms);
+      return { ctrl, cancel: () => clearTimeout(id) };
     },
+
     async callApi(q) {
-      this.persist()
-      const t = this.controllerWithTimeout(this.timeoutMs)
+      this.persist();
+      console.log("⏱️ timeoutMs (before call):", this.timeoutMs);
+      if (!this.timeoutMs|| this.timeoutMs < 100000){
+        this.timeoutMs = 1000000; // 1000s
+        localStorage.setItem('chat_timeout', String(this.timeoutMs));
+        console.log("⚠️ timeoutMs was too low, reset to:", this.timeoutMs);
+      }
+      const t = this.controllerWithTimeout(this.timeoutMs);
       try {
         const res = await fetch(this.url, {
           method: 'POST',
-          headers: { 'Accept': 'application/json, text/plain, */*', 'Content-Type': 'application/json' },
-          body: JSON.stringify(((k, v) => { const o = {}; o[k] = v; return o })(this.payloadKey || 'text', q)),
+          headers: {
+            'Accept': 'application/json, text/plain, */*',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ [this.payloadKey || 'text']: q }),
           mode: 'cors',
           signal: t.ctrl.signal,
-        })
-        t.cancel()
+        });
+        t.cancel();
 
-        const ct = res.headers.get('content-type') || ''
+        const ct = res.headers.get('content-type') || '';
         if (!res.ok) {
-          let bodyText = ''
-          let json = null
+          let bodyText = '';
           try {
-            if (ct.includes('application/json')) { json = await res.json(); bodyText = JSON.stringify(json, null, 2) }
-            else { bodyText = await res.text() }
-          } catch (e) {}
-
-          // Auto-fix 422 missing field → retry once with the required key
-          if (res.status === 422 && json && Array.isArray(json.detail)) {
-            let miss = null
-            for (let i = 0; i < json.detail.length; i++) {
-              const d = json.detail[i]
-              if (d && d.type === 'missing' && Array.isArray(d.loc) && d.loc[0] === 'body' && typeof d.loc[1] === 'string') { miss = d.loc[1]; break }
+            if (ct.includes('application/json')) {
+              const json = await res.json();
+              bodyText = this.pickAnswer(json) || JSON.stringify(json, null, 2);
+            } else {
+              bodyText = await res.text();
             }
-            if (miss && miss !== (this.payloadKey || 'text')) {
-              this.payloadKey = miss; this.persist()
-              const res2 = await fetch(this.url, {
-                method: 'POST',
-                headers: { 'Accept': 'application/json, text/plain, */*', 'Content-Type': 'application/json' },
-                body: JSON.stringify(((k, v) => { const o = {}; o[k] = v; return o })(this.payloadKey, q)),
-                mode: 'cors'
-              })
-              const ct2 = res2.headers.get('content-type') || ''
-              if (!res2.ok) {
-                const txt2 = ct2.includes('application/json') ? JSON.stringify(await res2.json(), null, 2) : await res2.text()
-                throw new Error('HTTP ' + res2.status + ' ' + res2.statusText + '\n\n' + txt2)
-              }
-              if (ct2.includes('application/json')) return this.pickAnswer(await res2.json())
-              const plain2 = await res2.text(); try { return this.pickAnswer(JSON.parse(plain2)) } catch { return plain2 }
-            }
-          }
-
-          // 🔊 เพิ่มบล็อกนี้หลัง retry block
-          try {
-            const formData = new FormData()
-            formData.append("text", q)
-            const ttsRes = await fetch("http://127.0.0.1:8080/tts", {
-              method: "POST",
-              body: formData
-            })
-            const blob = await ttsRes.blob()
-            const url = URL.createObjectURL(blob)
-            new Audio(url).play()
-          } catch (ttsErr) {
-            console.warn("TTS Error:", ttsErr)
-          }
-
-          throw new Error('HTTP ' + res.status + ' ' + res.statusText + (bodyText ? '\n\n' + bodyText : ''))
+          } catch (e) { /* ignore parsing error */ }
+          throw new Error('HTTP ' + res.status + ' ' + res.statusText + (bodyText ? '\n\n' + bodyText : ''));
         }
 
-        if (ct.includes('application/json')) return this.pickAnswer(await res.json())
-        const txt = await res.text(); try { return this.pickAnswer(JSON.parse(txt)) } catch { return txt }
-      } catch (e) {
-        const hints = []
+        if (ct.includes('application/json')) return this.pickAnswer(await res.json());
+        const txt = await res.text();
         try {
-          const u = new URL(this.url)
-          if (location.protocol === 'https:' && u.protocol === 'http:') hints.push('Mixed content: page is HTTPS but API is HTTP.')
-        } catch (er) {}
-        hints.push('CORS: enable on FastAPI (allow_origins=[\"*\"], methods=[\"*\"], headers=[\"*\"]).')
-        hints.push('Check server is running and path is correct.')
-        hints.push('Timeout: ' + this.timeoutMs + 'ms')
-        throw new Error((e && e.message ? e.message : String(e)) + '\n\nHints:\n- ' + hints.join('\n- '))
+          return this.pickAnswer(JSON.parse(txt));
+        } catch {
+          return txt;
+        }
+      } catch (e) {
+        const hints = [];
+        try {
+          const u = new URL(this.url);
+          if (location.protocol === 'https:' && u.protocol === 'http:') {
+            hints.push('Mixed content: page is HTTPS but API is HTTP.');
+          }
+        } catch (er) { /* ignore url parsing error */ }
+        hints.push('CORS: enable on FastAPI (allow_origins=[\"*\"]...).');
+        hints.push('Check server is running and path is correct.');
+        hints.push('Timeout: ' + this.timeoutMs + 'ms');
+        throw new Error((e && e.message ? e.message : String(e)) + '\n\nHints:\n- ' + hints.join('\n- '));
       }
     },
+
     async handleSend() {
-      const q = this.draft.trim(); if (!q) return
-      this.push('user', q); this.draft = ''; this.loading = true
-      try { const reply = await this.callApi(q); this.push('bot', reply) }
-      catch (e) { this.push('bot', 'Request failed: ' + (e && e.message ? e.message : String(e))) }
-      finally { this.loading = false; if (this.$refs.inputEl) this.$refs.inputEl.focus() }
+      const q = this.draft.trim();
+      if (!q) return;
+      this.push('user', q);
+      this.draft = '';
+      this.loading = true;
+      try {
+        const reply = await this.callApi(q);
+        this.push('bot', reply);
+      } catch (e) {
+        this.push('bot', 'Request failed: ' + (e && e.message ? e.message : String(e)));
+      } finally {
+        this.loading = false;
+        if (this.$refs.inputEl) this.$refs.inputEl.focus();
+      }
     },
+
     async testConnection() {
-      this.loading = true
-      try { const r = await this.callApi('__ping__'); this.push('bot', 'Test OK: ' + r) }
-      catch (e) { this.push('bot', 'Test failed: ' + (e && e.message ? e.message : String(e))) }
-      finally { this.loading = false }
-    }
+      this.loading = true;
+      try {
+        const r = await this.callApi('__ping__');
+        this.push('bot', 'Test OK: ' + r);
+      } catch (e) {
+        this.push('bot', 'Test failed: ' + (e && e.message ? e.message : String(e)));
+      } finally {
+        this.loading = false;
+      }
+    },
   },
   mounted() {
-    if (this.$refs.inputEl) this.$refs.inputEl.focus()
+    // This ref does not exist in the new template, so we can comment it out
+    // if (this.$refs.inputEl) this.$refs.inputEl.focus()
   }
 }
 </script>
@@ -371,19 +349,33 @@ export default {
   --success: #10B981;
   --error: #EF4444;
   --radius: 24px;
-  --shadow: 0 8px 32px rgba(0,0,0,.06), 0 2px 8px rgba(0,0,0,.04);
-  --shadow-lg: 0 12px 40px rgba(0,0,0,.12), 0 4px 12px rgba(0,0,0,.08);
+  --shadow: 0 8px 32px rgba(0, 0, 0, .06), 0 2px 8px rgba(0, 0, 0, .04);
+  --shadow-lg: 0 12px 40px rgba(0, 0, 0, .12), 0 4px 12px rgba(0, 0, 0, .08);
 }
 
 /* Global background */
-:global(html, body, #app) {
+:global(html,
+  body,
+  #app) {
   background: var(--ivory) !important;
   color: var(--textDark) !important;
   min-height: 100vh;
 }
-:global(html) { height: 100%; }
-:global(body) { height: 100%; margin: 0; padding: 0; }
-:global(#app) { min-height: 100vh; background: var(--ivory); }
+
+:global(html) {
+  height: 100%;
+}
+
+:global(body) {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+:global(#app) {
+  min-height: 100vh;
+  background: var(--ivory);
+}
 
 /* Page Layout */
 .llm-page {
@@ -430,12 +422,13 @@ export default {
     width: 80%;
     margin-top: 0.5%;
   }
-  
+
   .page-title {
     font-size: clamp(18px, 4vw, 24px);
   }
-  
-  .back-btn, .settings-btn {
+
+  .back-btn,
+  .settings-btn {
     width: 36px;
     height: 36px;
   }
@@ -583,8 +576,13 @@ export default {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slideInRight {
@@ -592,6 +590,7 @@ export default {
     opacity: 0;
     transform: translateX(100%);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
@@ -718,7 +717,9 @@ export default {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Chat Section */
@@ -757,13 +758,24 @@ export default {
 }
 
 @keyframes shake {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: translateX(0) rotate(0deg) scale(1);
   }
-  10%, 30%, 50%, 70%, 90% {
+
+  10%,
+  30%,
+  50%,
+  70%,
+  90% {
     transform: translateX(-15px) rotate(-5deg) scale(1.1);
   }
-  20%, 40%, 60%, 80% {
+
+  20%,
+  40%,
+  60%,
+  80% {
     transform: translateX(15px) rotate(5deg) scale(1.1);
   }
 }
@@ -772,51 +784,67 @@ export default {
   0% {
     filter: drop-shadow(0 0 0 rgba(105, 132, 116, 0.9)) brightness(1);
   }
+
   50% {
     filter: drop-shadow(0 0 40px rgba(105, 132, 116, 0.6)) brightness(1.3);
   }
+
   100% {
     filter: drop-shadow(0 0 0 rgba(105, 132, 116, 0)) brightness(1);
   }
 }
 
 @keyframes vibrate {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: translate(0, 0);
   }
+
   10% {
     transform: translate(-2px, 2px);
   }
+
   20% {
     transform: translate(2px, -2px);
   }
+
   30% {
     transform: translate(-2px, -2px);
   }
+
   40% {
     transform: translate(2px, 2px);
   }
+
   50% {
     transform: translate(-2px, 2px);
   }
+
   60% {
     transform: translate(2px, -2px);
   }
+
   70% {
     transform: translate(-2px, -2px);
   }
+
   80% {
     transform: translate(2px, 2px);
   }
+
   90% {
     transform: translate(-2px, 2px);
   }
 }
 
 @keyframes float {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: translateY(0px);
   }
+
   50% {
     transform: translateY(-15px);
   }
@@ -930,6 +958,7 @@ export default {
     opacity: 0;
     transform: translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -1031,12 +1060,27 @@ export default {
   animation: typing 1.4s infinite ease-in-out;
 }
 
-.typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
-.typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+.typing-indicator span:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.typing-indicator span:nth-child(2) {
+  animation-delay: -0.16s;
+}
 
 @keyframes typing {
-  0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
-  40% { transform: scale(1); opacity: 1; }
+
+  0%,
+  80%,
+  100% {
+    transform: scale(0.8);
+    opacity: 0.5;
+  }
+
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 .loading-text {
@@ -1119,20 +1163,20 @@ export default {
     width: 100%;
     margin-top: 1%;
   }
-  
-  
+
+
   .chat-section {
     height: calc(100vh - 130px);
   }
-  
+
   .chat-messages {
     padding: 16px;
   }
-  
+
   .composer-container {
     padding: 16px;
   }
-  
+
   .message-bubble {
     max-width: 95%;
   }
@@ -1143,58 +1187,60 @@ export default {
     width: 100%;
     margin-top: 0.5%;
   }
-  
+
   .page-title {
     font-size: clamp(18px, 4vw, 24px);
   }
-  
-  .circle-btn, .back-btn, .settings-btn {
+
+  .circle-btn,
+  .back-btn,
+  .settings-btn {
     width: 36px;
     height: 36px;
   }
-  
+
   .popup-overlay {
     padding: 60px 10px 10px;
   }
-  
+
   .popup-container {
     max-width: 350px;
   }
-  
+
   .popup-header {
     padding: 16px 20px 12px;
   }
-  
+
   .popup-title {
     font-size: 18px;
   }
-  
+
   .popup-content {
     padding: 20px;
   }
-  
+
   .popup-footer {
     padding: 12px 20px 16px;
   }
-  
-  
+
+
   .chat-section {
     height: calc(100vh - 110px);
   }
-  
+
   .chat-messages {
     padding: 12px;
   }
-  
+
   .composer-container {
     padding: 12px;
   }
-  
+
   .composer-input {
     padding: 14px 16px;
     font-size: 16px;
   }
-  
+
   .send-btn {
     width: 44px;
     height: 44px;

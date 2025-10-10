@@ -1,10 +1,10 @@
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-import { getAuth, GoogleAuthProvider } from "firebase/auth";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+// /src/firebase.js
 
+import { initializeApp } from "firebase/app";
+import { getAuth, GoogleAuthProvider } from "firebase/auth"; // 👈 เอา auth กลับมา
+import { getDatabase } from "firebase/database";
+
+// ข้อมูล config ของคุณ
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
@@ -19,10 +19,11 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
-// 👉 export ที่คุณจะใช้
-const auth = getAuth(app);
-const provider = new GoogleAuthProvider();
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+// สร้าง instance ทั้งหมดที่จำเป็น
+const auth = getAuth(app); // 👈 สร้าง auth
+const provider = new GoogleAuthProvider(); // 👈 สร้าง provider
+const db = getDatabase(app); // 👈 สร้าง db สำหรับ Realtime Database
 
-export { auth, provider };
+// 🔥 ส่งออกไปให้ครบทุกตัว
+export { auth, provider, db };

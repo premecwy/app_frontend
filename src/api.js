@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "http://localhost:8080", // URL backend
+  baseURL: "http://localhost:8000", // URL backend
 });
 
 // ✅ ดักทุก request → ใส่ access_token

@@ -112,11 +112,11 @@ async function loginGoogle() {
     };
 
     // ✅ ได้ Firebase token
-    firebaseToken.value = await result.user.getIdToken();
-    console.log("✅ Firebase ID Token:", firebaseToken.value);
+    firebaseToken.value = await result.user.getIdToken(true); // 🔥 บรรทัดนี้เพิ่ม force refresh token
+    console.log("✅ Firebase ID Token:", firebaseToken.value)
 
     // ✅ ส่งไป backend แลก access/refresh token
-    const res = await fetch("http://localhost:8000/auth/login-google", {
+    const res = await fetch("http://localhost:8080/auth/login-google", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ firebase_token: firebaseToken.value }),

@@ -24,24 +24,49 @@
     <main class="page">
       <div class="container">
         <div class="dog-container">
-          <div class="big-dog" :class="{ shake: isShaking }" @click="handleDogClick">🐶</div>
+          <div v-if="!showTextArea" class="big-dog" :class="{ shake: isShaking }" @click="handleDogClick">🐶</div>
 
-          <transition name="slide-up">
-            <div v-if="showTextArea" class="text-area-container">
-              <textarea v-model="messageText" class="message-input" placeholder="Type your message here..." rows="2"
-                @keyup.enter.ctrl="sendMessage"></textarea>
-              <div class="text-area-actions">
-                <button class="btn-send" @click="sendMessage" :disabled="!messageText.trim()"
-                  style="display: flex !important;">
-                  <svg viewBox="0 0 24 24" width="20" height="20">
-                    <path fill="currentColor" d="M2,21L23,12L2,3V10L17,12L2,14V21Z" />
-                  </svg>
-                  Send
-                </button>
-                <button class="btn-clear" @click="messageText = ''" style="display: flex !important;">Clear</button>
+          <div v-if="showTextArea" class="chat-wrapper">
+              <!-- Chat History Section -->
+              <div class="chat-history" ref="chatHistory">
+                <div v-if="messages.length === 0" class="empty-chat">
+                  <div class="empty-icon">💬</div>
+                  <p>Start a conversation with LUMA!</p>
+      </div>
+                <div v-else class="messages-list">
+                  <div v-for="(msg, idx) in messages" :key="idx" class="message-row" :class="msg.role">
+                    <div class="message-bubble">
+                      <div class="message-content">{{ msg.content }}</div>
+                    </div>
+                  </div>
+                  <div v-if="loading" class="message-row assistant">
+                    <div class="message-bubble loading">
+                      <div class="typing-indicator">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Text Area Container -->
+              <div class="text-area-container">
+                <textarea v-model="messageText" class="message-input" placeholder="Type your message here..." rows="2"
+                  @keyup.enter.ctrl="sendMessage"></textarea>
+                <div class="text-area-actions">
+                  <button class="btn-send" @click="sendMessage" :disabled="!messageText.trim()"
+                    style="display: flex !important;">
+                    <svg viewBox="0 0 24 24" width="20" height="20">
+                      <path fill="currentColor" d="M2,21L23,12L2,3V10L17,12L2,14V21Z" />
+                    </svg>
+                    Send
+                  </button>
+                  <button class="btn-clear" @click="messageText = ''" style="display: flex !important;">Clear</button>
+                </div>
               </div>
             </div>
-          </transition>
         </div>
       </div>
     </main>
@@ -53,13 +78,21 @@ export default {
   name: 'LlmPage',
   data() {
     return {
+      // Where to show result from chat and user
       url: localStorage.getItem('chat_url') || 'http://127.0.0.1:8000/chat',
       payloadKey: localStorage.getItem('chat_key') || 'text',
       timeoutMs: Number(localStorage.getItem('chat_timeout') || 1000000),
       showSettings: false,
       draft: '',
       loading: false,
-      messages: [],
+      messages: [
+        { role: 'user', content: 'Hello! Can you help me with my tasks today?' },
+        { role: 'assistant', content: 'Of course! I\'d be happy to help you with your tasks. What would you like to work on first?' },
+        { role: 'user', content: 'I need to organize my schedule for this week.' },
+        { role: 'assistant', content: 'Great! Let me help you organize your schedule. You can start by telling me about your important tasks or deadlines this week, and I\'ll help you prioritize them.' },
+        { role: 'user', content: 'I have a meeting on Wednesday and a project deadline on Friday.' },
+        { role: 'assistant', content: 'Perfect! I\'ve noted that you have:\n\n1. Meeting on Wednesday\n2. Project deadline on Friday\n\nWould you like me to help you break down the project into smaller tasks to ensure you meet the Friday deadline?' },
+      ],
       isShaking: false,
       showTextArea: false,
       messageText: '',
@@ -122,14 +155,20 @@ export default {
             const sttData = await sttRes.json();
             const recognizedText = sttData.text;
 
-            if (recognizedText) {
-              console.log("💬 recognized text:", recognizedText);
-              this.messages.push({ role: 'user', content: recognizedText });
+                  if (recognizedText) {
+                    console.log("💬 recognized text:", recognizedText);
+                    this.messages.push({ role: 'user', content: recognizedText });
+                    this.$nextTick(() => {
+                      this.scrollToBottom();
+                    });
 
-              console.log('🚀 Sending to /chat API...');
-              const chatReply = await this.callApi(recognizedText);
-              this.messages.push({ role: 'assistant', content: chatReply });
-              console.log("🤖 LLM replied:", chatReply);
+                    console.log('🚀 Sending to /chat API...');
+                    const chatReply = await this.callApi(recognizedText);
+                    this.messages.push({ role: 'assistant', content: chatReply });
+                    console.log("🤖 LLM replied:", chatReply);
+                    this.$nextTick(() => {
+                      this.scrollToBottom();
+                    });
 
               if (chatReply) {
                 try {
@@ -178,14 +217,31 @@ export default {
       this.messages.push({ role: 'user', content: q });
       this.messageText = '';
       this.loading = true;
+      
+      this.$nextTick(() => {
+        this.scrollToBottom();
+      });
 
       try {
         const reply = await this.callApi(q);
         this.messages.push({ role: 'assistant', content: reply });
+        this.$nextTick(() => {
+          this.scrollToBottom();
+        });
       } catch (e) {
         this.messages.push({ role: 'assistant', content: 'Request failed: ' + (e && e.message ? e.message : String(e)) });
+        this.$nextTick(() => {
+          this.scrollToBottom();
+        });
       } finally {
         this.loading = false;
+      }
+    },
+    
+    scrollToBottom() {
+      const chatHistory = this.$refs.chatHistory;
+      if (chatHistory) {
+        chatHistory.scrollTop = chatHistory.scrollHeight;
       }
     },
 
@@ -359,7 +415,7 @@ export default {
   #app) {
   background: var(--ivory) !important;
   color: var(--textDark) !important;
-  min-height: 100vh;
+  /* min-height: 100vh; */
 }
 
 :global(html) {
@@ -728,11 +784,12 @@ export default {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 24px;
-  height: calc(100vh - 150px);
+  min-height: calc(100vh - 150px);
   width: 100%;
   padding: 20px;
+  padding-top: 60px;
 }
 
 .big-dog {
@@ -742,6 +799,7 @@ export default {
   cursor: pointer;
   transition: transform 0.3s ease;
   animation: float 3s ease-in-out infinite;
+  margin-top: 100px;
 }
 
 .big-dog:hover {
@@ -850,16 +908,86 @@ export default {
   }
 }
 
-/* Text Area Container */
-.text-area-container {
+/* Chat Wrapper */
+.chat-wrapper {
   width: 100%;
-  max-width: 700px;
+  max-width: 800px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Chat History */
+.chat-history {
+  width: 100%;
   background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
   border: 3px solid var(--sage);
   border-radius: 24px;
   padding: 24px;
   box-shadow: var(--shadow-lg);
-  animation: slideUp 0.3s ease-out;
+  max-height: 400px;
+  min-height: 200px;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+}
+
+/* Custom Scrollbar for Chat History */
+.chat-history::-webkit-scrollbar {
+  width: 8px;
+}
+
+.chat-history::-webkit-scrollbar-track {
+  background: rgba(105, 132, 116, 0.1);
+  border-radius: 10px;
+}
+
+.chat-history::-webkit-scrollbar-thumb {
+  background: var(--sage);
+  border-radius: 10px;
+  transition: background 0.3s ease;
+}
+
+.chat-history::-webkit-scrollbar-thumb:hover {
+  background: var(--sageLight);
+}
+
+.empty-chat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 150px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.empty-chat .empty-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+  opacity: 0.8;
+}
+
+.empty-chat p {
+  font-size: 16px;
+  margin: 0;
+  font-weight: 500;
+}
+
+.messages-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Text Area Container */
+.text-area-container {
+  width: 100%;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border: 3px solid var(--sage);
+  border-radius: 24px;
+  padding: 24px;
+  box-shadow: var(--shadow-lg);
 }
 
 .message-input {
@@ -953,6 +1081,17 @@ export default {
   transform: translateY(20px);
 }
 
+/* Fade Transition for Dog */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
 @keyframes slideUp {
   from {
     opacity: 0;
@@ -997,47 +1136,62 @@ export default {
 /* Message Rows */
 .message-row {
   display: flex;
-  margin: 8px 0;
+  margin: 0;
+  animation: fadeInMessage 0.3s ease-out;
+}
+
+@keyframes fadeInMessage {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .message-row.user {
   justify-content: flex-end;
 }
 
+.message-row.assistant,
 .message-row.bot {
   justify-content: flex-start;
 }
 
 .message-bubble {
-  max-width: min(720px, 85%);
-  padding: 16px 20px;
-  border-radius: 20px;
+  max-width: 75%;
+  padding: 12px 16px;
+  border-radius: 18px;
   line-height: 1.5;
   white-space: pre-wrap;
-  box-shadow: var(--shadow);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.2s ease;
 }
 
 .message-row.user .message-bubble {
   background: linear-gradient(135deg, var(--sage) 0%, var(--sageLight) 100%);
   color: var(--white);
-  border-bottom-right-radius: 8px;
+  border-bottom-right-radius: 4px;
 }
 
+.message-row.assistant .message-bubble,
 .message-row.bot .message-bubble {
   background: var(--white);
   color: var(--textDark);
-  border: 2px solid var(--sage);
-  border-bottom-left-radius: 8px;
+  border: 2px solid var(--peach);
+  border-bottom-left-radius: 4px;
 }
 
 .message-bubble:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-lg);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
 }
 
 .message-content {
   word-wrap: break-word;
+  word-break: break-word;
 }
 
 /* Loading State */

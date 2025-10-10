@@ -909,13 +909,13 @@ export default {
 }
 
 .btn-send {
-  background: linear-gradient(135deg, var(--sage) 0%, var(--sageLight) 100%);
+  background: black;
   color: white;
-  border-color: var(--sage);
+  /* border-color: var(--sage); */
 }
 
 .btn-send:hover:not(:disabled) {
-  background: linear-gradient(135deg, var(--sageLight) 0%, #5a7a6a 100%);
+  background: black;
   transform: translateY(-2px);
   box-shadow: 0 8px 16px rgba(105, 132, 116, 0.3);
 }

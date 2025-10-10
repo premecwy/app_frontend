@@ -276,7 +276,7 @@ const userReady = ref(false);
 
 // ✅ ล็อกอินด้วย token จาก backend (เก็บไว้ใน localStorage)
 async function loginWithToken() {
-  const token = localStorage.getItem("firebase_token");
+  const token = localStorage.getItem("firebase_id_token");
   if (!token) throw new Error("ไม่พบ Firebase access token ใน localStorage");
 
   const userCred = await signInWithCustomToken(auth, token);

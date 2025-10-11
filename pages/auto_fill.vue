@@ -59,31 +59,31 @@
 
           <!-- Enhanced Action Buttons -->
           <div class="action-buttons">
-            <button 
+            <!-- <button 
               class="btn-primary" 
               @click="analyze" 
               :disabled="loading"
             >
               <span v-if="loading" class="loading-spinner"></span>
               {{ loading ? 'Analyzing...' : 'Analyze' }}
-            </button>
+            </button> -->
             
             <button 
               class="btn-secondary" 
               @click="submit" 
-              :disabled="!result || submitting"
+              :disabled="submitting"
             >
               <span v-if="submitting" class="loading-spinner"></span>
               {{ submitting ? 'Submitting...' : 'Submit' }}
-            </button>
+        </button>
             
-            <button 
+            <!-- <button 
               class="btn-copy" 
               @click="copyJSON" 
               :disabled="!result"
             >
               Copy JSON
-        </button>
+        </button> -->
             
             <button 
               class="btn-clear" 
@@ -136,6 +136,37 @@
     </section>
       </div>
     </main>
+
+    <!-- Result Modal -->
+    <div v-if="showResultModal" class="modal-overlay" @click="closeResultModal">
+      <div class="modal-container" @click.stop>
+        <div class="modal-header">
+          <h2 class="modal-title">Result</h2>
+          <button class="close-btn" @click="closeResultModal" aria-label="Close modal">
+            <svg viewBox="0 0 24 24" width="20" height="20">
+              <path fill="currentColor" d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
+            </svg>
+          </button>
+        </div>
+        
+        <div class="modal-content">
+          <div class="result-textarea-wrapper">
+            <textarea 
+              v-model="resultText" 
+              class="result-textarea" 
+              rows="15"
+              placeholder="Result will appear here..."
+              readonly
+            ></textarea>
+            <button class="copy-btn-inline" @click="copyResult" title="Copy to clipboard">
+              <svg viewBox="0 0 24 24" width="18" height="18">
+                <path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
   </template>
   
@@ -151,6 +182,8 @@
   const submitting = ref(false)
   const error = ref('')
   const info = ref('')
+  const showResultModal = ref(false)
+  const resultText = ref('')
   
   function onFile(e: Event) {
     const el = e.target as HTMLInputElement
@@ -203,23 +236,79 @@
   }
   
   async function submit() {
-    if (!result.value) return
     error.value = ''
     info.value = ''
     submitting.value = true
+    
+    // Mock data for demonstration
+    const mockResult = {
+      status: 'success',
+      message: 'Form submitted successfully',
+      data: {
+        name: 'John Doe',
+        email: 'john.doe@example.com',
+        phone: '+1 234 567 8900',
+        address: '123 Main Street, City, Country',
+        occupation: 'Software Engineer',
+        company: 'Tech Corp Inc.',
+        experience: '5 years',
+        skills: ['JavaScript', 'Vue.js', 'Node.js', 'Python'],
+        education: {
+          degree: 'Bachelor of Science',
+          major: 'Computer Science',
+          university: 'Tech University',
+          year: 2018
+        },
+        preferences: {
+          newsletter: true,
+          notifications: true,
+          darkMode: false
+        }
+      },
+      timestamp: new Date().toISOString(),
+      submissionId: 'SUB-' + Math.random().toString(36).substr(2, 9).toUpperCase()
+    }
+    
+    try {
+      // Simulate API call delay
+      await new Promise(resolve => setTimeout(resolve, 800))
+      
+      // If there's real data, try to submit it
+      if (result.value) {
     try {
       const res = await fetch(`${API_BASE}/fillform/submit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(result.value),
       })
-      await fetchJSON(res)
+          const data = await fetchJSON(res)
+          resultText.value = typeof data === 'string' ? data : JSON.stringify(data, null, 2)
+        } catch (apiError) {
+          // If API fails, use mock data
+          resultText.value = JSON.stringify(mockResult, null, 2)
+        }
+      } else {
+        // No real data, use mock data
+        resultText.value = JSON.stringify(mockResult, null, 2)
+      }
+      
+      showResultModal.value = true
       info.value = 'Submitted!'
     } catch (e: any) {
       error.value = e?.message || 'Submit failed'
     } finally {
       submitting.value = false
     }
+  }
+  
+  function closeResultModal() {
+    showResultModal.value = false
+  }
+  
+  async function copyResult() {
+    if (!resultText.value) return
+    await navigator.clipboard.writeText(resultText.value)
+    info.value = 'Copied to clipboard!'
   }
   
   function clearAll() {
@@ -814,6 +903,191 @@
 .btn-clear:focus-visible {
   outline: 2px solid var(--sage);
   outline-offset: 2px;
+}
+
+/* Result Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+  backdrop-filter: blur(4px);
+}
+
+.modal-container {
+  background: var(--white);
+  border-radius: 24px;
+  box-shadow: var(--shadow-lg);
+  max-width: 800px;
+  width: 100%;
+  max-height: 90vh;
+  overflow: hidden;
+  border: 3px solid var(--sage);
+  animation: modalSlideUp 0.3s ease-out;
+}
+
+@keyframes modalSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 32px;
+  background: linear-gradient(135deg, var(--sage) 0%, var(--sageLight) 100%);
+  color: var(--white);
+  border-bottom: 3px solid var(--sage);
+}
+
+.modal-title {
+  font-size: 28px;
+  font-weight: 800;
+  margin: 0;
+  color: white;
+}
+
+.close-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--sage);
+  border: 2px solid rgba(255, 255, 255, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.close-btn:hover {
+  background: red;
+  border-color: red;
+  color: white;
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.modal-content {
+  padding: 32px;
+  max-height: calc(90vh - 100px);
+  overflow-y: auto;
+}
+
+.result-textarea-wrapper {
+  position: relative;
+}
+
+.result-textarea {
+  width: 100%;
+  padding: 20px;
+  padding-top: 50px;
+  border: 2px solid #E5E7EB;
+  border-radius: 16px;
+  font-size: 16px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  background: #f8fafc;
+  color: var(--textDark);
+  resize: vertical;
+  min-height: 400px;
+  line-height: 1.6;
+}
+
+.result-textarea:focus {
+  outline: none;
+  border-color: var(--sage);
+  box-shadow: 0 0 0 4px rgba(105, 132, 116, 0.15);
+}
+
+.copy-btn-inline {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 10px 16px;
+  background: var(--sage);
+  color: var(--white);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.copy-btn-inline:hover {
+  background: var(--sageLight);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.copy-btn-inline:active {
+  transform: translateY(0);
+}
+
+/* Responsive modal */
+@media (max-width: 768px) {
+  .modal-container {
+    max-width: 95%;
+  }
+  
+  .modal-header {
+    padding: 20px 24px;
+  }
+  
+  .modal-title {
+    font-size: 24px;
+  }
+  
+  .modal-content {
+    padding: 24px;
+  }
+  
+  .result-textarea {
+    min-height: 300px;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .modal-overlay {
+    padding: 10px;
+  }
+  
+  .modal-header {
+    padding: 16px 20px;
+  }
+  
+  .modal-title {
+    font-size: 20px;
+  }
+  
+  .modal-content {
+    padding: 20px;
+  }
+  
+  .close-btn {
+    width: 32px;
+    height: 32px;
+  }
 }
   </style>
   

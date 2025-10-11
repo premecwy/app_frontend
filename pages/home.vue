@@ -63,7 +63,7 @@
         </div>
 
         <!-- Enhanced History Section -->
-        <section class="history card" :style="historyCardStyle">
+        <!-- <section class="history card" :style="historyCardStyle">
           <header class="history-head">
             <h2 class="history-title">Recent Activity</h2>
             <button class="seeall" @click="go('/history')">
@@ -98,7 +98,7 @@
               </div>
             </div>
           </div>
-        </section>
+        </section> -->
       </div>
     </main>
   </div>
@@ -139,7 +139,7 @@ const heroCardStyle = {
   color: PALETTE.white,
   padding: 'clamp(24px, 4vw, 40px)',
   marginBottom: 'clamp(20px, 3vw, 32px)',
-  minHeight: 'clamp(160px, 25vh, 280px)',
+  minHeight: 'clamp(220px, 32vh, 380px)',
   position: 'relative' as const,
   overflow: 'hidden',
   display: 'block',
@@ -152,7 +152,7 @@ const taskCardStyle = {
   background: `linear-gradient(135deg, ${PALETTE.sand} 0%, #E6B085 100%)`,
   color: PALETTE.white,
   padding: 'clamp(20px, 3vw, 28px)',
-  minHeight: 'clamp(140px, 18vh, 200px)',
+  minHeight: 'clamp(180px, 22vh, 250px)',
   display: 'flex',
   flexDirection: 'column' as const,
   justifyContent: 'space-between',
@@ -164,7 +164,7 @@ const fillCardStyle = {
   background: `linear-gradient(135deg, ${PALETTE.peach} 0%, #FFE4D1 100%)`,
   color: '#5A3F2E',
   padding: 'clamp(20px, 3vw, 28px)',
-  minHeight: 'clamp(140px, 18vh, 200px)',
+  minHeight: 'clamp(180px, 22vh, 250px)',
   display: 'flex',
   flexDirection: 'column' as const,
   justifyContent: 'space-between',
@@ -211,7 +211,20 @@ const historyCardStyle = {
   height: 100%;
   position: relative;
   background: #f7e0b8;
+  display: flex;
+  flex-direction: column;
 }
+
+/* main.page {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  padding: clamp(20px, 3vw, 40px) 0;
+}
+
+main.page .container {
+  width: 100%;
+} */
 
 /* Enhanced Topbar */
 .topbar-content {

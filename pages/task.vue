@@ -225,7 +225,7 @@
           </div>
         </div>
         
-        <!-- <div class="task-popup-footer">
+        <div class="task-popup-footer">
           <button class="btn-edit" @click="editFromPopup">
             <svg viewBox="0 0 24 24" width="16" height="16">
               <path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
@@ -238,7 +238,7 @@
             </svg>
             Delete Task
           </button>
-        </div> -->
+        </div> 
       </div>
     </div>
   </div>
@@ -332,22 +332,11 @@ const form = ref<Partial<Task>>({
 });
 
 import axios from "axios";
-
 const backendBase = "http://localhost:8000";
 
 const accessToken = ref<string | null>(null);
 
 // ดึง token จาก backend
-async function fetchBackendToken() {
-  try {
-    const res = await axios.get(`${backendBase}/api/auth/token`);
-    accessToken.value = res.data.token;
-    console.log("✅ Got token from backend");
-  } catch (e) {
-    console.error("❌ Failed to fetch token:", e);
-  }
-}
-
 async function loadTasks() {
   loading.value = true;
   pageError.value = "";
@@ -355,7 +344,9 @@ async function loadTasks() {
     if (!accessToken.value) await fetchBackendToken(); // ดึง token ก่อนถ้ายังไม่มี
 
     const res = await axios.get(`${backendBase}/api/task/my-tasks`, {
-      headers: { Authorization: `Bearer ${accessToken.value}` },
+      headers: {
+        Authorization: `Bearer ${accessToken.value}`,
+      },
     });
 
     tasks.value = res.data || [];
@@ -459,7 +450,18 @@ function formatDate(d?: string) {
   try {
     return new Date(d).toLocaleDateString("th-TH", { year: "numeric", month: "short", day: "numeric" });
   } catch {
-  return d;
+    return d;
+  }
+}
+
+async function fetchBackendToken() {
+  try {
+    const res = await axios.get(`${backendBase}/api/auth/token`);
+    accessToken.value = res.data.access_token;
+    console.log("✅ Access token loaded from backend:", accessToken.value?.slice(0, 20) + "...");
+  } catch (e: any) {
+    console.error("❌ Failed to fetch access token from backend:", e);
+    throw new Error("Cannot fetch token from backend");
   }
 }
 function formatTime(t?: string) {
@@ -484,7 +486,8 @@ function cancelForm() {
     time: "19:00",
   };
 }
-function editFromPopup() {
+
+function editFromPopup(): void {
   if (selectedTask.value) {
     console.log("Editing task:", selectedTask.value);
     closeTaskDetails();
@@ -505,10 +508,10 @@ function openCreate() {
 // ===============================
 onMounted(async () => {
   try {
-    await loginWithToken();
+    await fetchBackendToken();
     await loadTasks();
   } catch (err) {
-    console.error("❌ Login or loadTasks failed:", err);
+    console.error("❌ Initial load failed:", err);
     pageError.value = (err as any)?.message || "Load failed";
     loading.value = false;
   }

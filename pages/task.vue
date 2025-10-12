@@ -246,9 +246,9 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApp, getApps } from "firebase/app";
 import { getAuth, signInWithCustomToken } from "firebase/auth";
-import { getDatabase, ref as databaseRef, get, push, remove, update } from "firebase/database";
+import { getDatabase, ref as databaseRef, push, remove, update } from "firebase/database";
 
 // ===============================
 // 🔥 Firebase Config
@@ -263,8 +263,15 @@ const firebaseConfig = {
   appId: "APP_ID",
 };
 
-// ✅ Initialize Firebase
-const app = initializeApp(firebaseConfig);
+let app;
+if (!getApps().length) {
+  app = initializeApp(firebaseConfig);
+  console.log("🔥 Firebase initialized");
+} else {
+  app = getApp();
+  console.log("♻️ Firebase app reused");
+}
+
 const auth = getAuth(app);
 const db = getDatabase(app);
 
@@ -324,27 +331,43 @@ const form = ref<Partial<Task>>({
   time: "19:00",
 });
 
+import axios from "axios";
+
+const backendBase = "http://localhost:8000";
+
+const accessToken = ref<string | null>(null);
+
+// ดึง token จาก backend
+async function fetchBackendToken() {
+  try {
+    const res = await axios.get(`${backendBase}/api/auth/token`);
+    accessToken.value = res.data.token;
+    console.log("✅ Got token from backend");
+  } catch (e) {
+    console.error("❌ Failed to fetch token:", e);
+  }
+}
+
 async function loadTasks() {
-  if (!uid.value) return;
   loading.value = true;
   pageError.value = "";
   try {
-    const tasksRef = databaseRef(db, `users/${uid.value}/tasks`);
-    const snapshot = await get(tasksRef);
-    if (snapshot.exists()) {
-      const data = snapshot.val();
-      tasks.value = Object.keys(data)
-        .map((key) => ({ id: key, ...data[key] }))
-        .reverse();
-    } else {
-      tasks.value = [];
-    }
+    if (!accessToken.value) await fetchBackendToken(); // ดึง token ก่อนถ้ายังไม่มี
+
+    const res = await axios.get(`${backendBase}/api/task/my-tasks`, {
+      headers: { Authorization: `Bearer ${accessToken.value}` },
+    });
+
+    tasks.value = res.data || [];
+    console.log("✅ Tasks loaded:", tasks.value);
   } catch (e: any) {
-    pageError.value = `Failed to load tasks: ${e.message}`;
+    console.error("❌ Failed to load tasks:", e);
+    pageError.value = e.response?.data?.detail || e.message;
   } finally {
     loading.value = false;
   }
 }
+
 
 async function addQuick() {
   if (!quickName.value.trim() || !uid.value) return;

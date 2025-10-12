@@ -92,10 +92,11 @@ import { auth, provider } from "../src/firebase";
 import { useRouter } from "vue-router";
 
 const router = useRouter();
-const user = ref(null);
+const user = ref({});
 const firebaseToken = ref("");
 const accessToken = ref("");
 const refreshToken = ref("");
+
 
 function go() {
   router.push("/");
@@ -104,6 +105,7 @@ function go() {
 async function loginGoogle() {
   try {
     const result = await signInWithPopup(auth, provider);
+    const user = result.user;
 
     user.value = {
       uid: result.user.uid,
@@ -116,12 +118,11 @@ async function loginGoogle() {
     console.log("✅ Firebase ID Token:", firebaseToken.value)
 
     // ✅ ส่งไป backend แลก access/refresh token
-    const res = await fetch("http://localhost:8080/auth/login-google", {
+    const res = await fetch("http://localhost:8000/api/auth/login-google", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ firebase_token: firebaseToken.value }),
+      headers: { "Content-Type": "application/json"},
+      body: JSON.stringify({ "idToken": firebaseToken.value }),
     });
-
     if (!res.ok) throw new Error("Backend login failed");
     const data = await res.json();
 

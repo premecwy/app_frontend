@@ -25,11 +25,43 @@
 
           <!-- Result Layout Box -->
           <div class="result-layout-box">
-            <div class="result-layout-item">Result layout</div>
-            <div class="result-layout-item">Id :</div>
-            <div class="result-layout-item">Name :</div>
-            <div class="result-layout-item">Age</div>
-            <div class="result-layout-item">Address :</div>
+            <!-- Action Buttons -->
+            <div class="result-box-actions">
+              <button @click="toggleEdit" class="icon-btn" :title="isEditing ? 'Lock' : 'Edit'">
+                <svg v-if="!isEditing" viewBox="0 0 24 24" width="18" height="18">
+                  <path fill="currentColor" d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"/>
+                </svg>
+                <svg v-else viewBox="0 0 24 24" width="18" height="18">
+                  <path fill="currentColor" d="M12,17A2,2 0 0,0 14,15C14,13.89 13.1,13 12,13A2,2 0 0,0 10,15A2,2 0 0,0 12,17M18,8A2,2 0 0,1 20,10V20A2,2 0 0,1 18,22H6A2,2 0 0,1 4,20V10C4,8.89 4.9,8 6,8H7V6A5,5 0 0,1 12,1A5,5 0 0,1 17,6V8H18M12,3A3,3 0 0,0 9,6V8H15V6A3,3 0 0,0 12,3Z"/>
+                </svg>
+              </button>
+              <button @click="copyResults" class="icon-btn" title="Copy Results">
+                <svg viewBox="0 0 24 24" width="18" height="18">
+                  <path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"/>
+                </svg>
+              </button>
+            </div>
+            
+            <div class="result-layout-item">
+              <span class="field-label">ID Number:</span>
+              <input v-if="isEditing && result" v-model="result['ID Number']" class="field-input" />
+              <span v-else class="field-value">{{ result?.['ID Number'] || result?.id_number || '-' }}</span>
+            </div>
+            <div class="result-layout-item">
+              <span class="field-label">Name:</span>
+              <input v-if="isEditing && result" v-model="result.Name" class="field-input" />
+              <span v-else class="field-value">{{ result?.Name || result?.name || '-' }}</span>
+            </div>
+            <div class="result-layout-item">
+              <span class="field-label">Date of Birth:</span>
+              <input v-if="isEditing && result" v-model="result['Date of Birth']" class="field-input" />
+              <span v-else class="field-value">{{ result?.['Date of Birth'] || result?.date_of_birth || '-' }}</span>
+            </div>
+            <div class="result-layout-item">
+              <span class="field-label">Address:</span>
+              <input v-if="isEditing && result" v-model="result.Address" class="field-input" />
+              <span v-else class="field-value">{{ result?.Address || result?.address || '-' }}</span>
+            </div>
           </div>
 
           <!-- File Upload Section -->
@@ -82,19 +114,6 @@
             {{ info }}
           </div>
 
-          <!-- Preview Section -->
-          <div v-if="result" class="preview-section">
-            <div class="preview-header">
-              <h3 class="preview-title">Extracted Information</h3>
-            </div>
-            
-            <div class="preview-grid">
-              <div v-for="(v, k) in result" :key="k" class="preview-item">
-                <div class="preview-key">{{ k }}</div>
-                <div class="preview-value">{{ v }}</div>
-              </div>
-            </div>
-          </div>
         </section>
       </div>
     </main>
@@ -109,6 +128,7 @@ const submitting = ref(false);
 const error = ref("");
 const info = ref("");
 const result = ref(null);
+const isEditing = ref(false);
 
 function onFile(e) {
   const f = e.target.files?.[0];
@@ -152,6 +172,28 @@ async function submit() {
     error.value = `Failed to process ID card: ${e.message}`;
   } finally {
     submitting.value = false;
+  }
+}
+
+function toggleEdit() {
+  isEditing.value = !isEditing.value;
+  info.value = isEditing.value ? "Editing mode enabled" : "Editing mode disabled";
+}
+
+async function copyResults() {
+  try {
+    // Format the data as shown in the box
+    const textToCopy = `
+ID Number: ${result.value?.['ID Number'] || result.value?.id_number || '-'}
+Name: ${result.value?.Name || result.value?.name || '-'}
+Date of Birth: ${result.value?.['Date of Birth'] || result.value?.date_of_birth || '-'}
+Address: ${result.value?.Address || result.value?.address || '-'}
+    `.trim();
+    
+    await navigator.clipboard.writeText(textToCopy);
+    info.value = "Results copied to clipboard!";
+  } catch (e) {
+    error.value = "Failed to copy results";
   }
 }
 </script>
@@ -247,7 +289,7 @@ async function submit() {
 .main-section {
   padding: clamp(24px, 4vw, 32px);
   margin-bottom: 24px;
-  background: white;
+  background: var(--white);
   border: 2px solid var(--sage);
 }
 
@@ -280,16 +322,109 @@ async function submit() {
   border: 2px solid #E5E7EB;
   border-radius: 12px;
   padding: 20px;
+  padding-top: 50px;
   margin: 20px auto;
   background: #f8fafc;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   max-width: 400px;
+  max-height: 400px;
+  overflow-y: auto;
+  position: relative;
+}
+
+.result-box-actions {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  gap: 8px;
+  z-index: 10;
+}
+
+.icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--white);
+  border: 2px solid var(--sage);
+  color: var(--sage);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.icon-btn:hover {
+  background: var(--sage);
+  color: var(--white);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(105, 132, 116, 0.3);
+}
+
+.icon-btn:active {
+  transform: translateY(0);
+}
+
+/* Custom scrollbar styling */
+.result-layout-box::-webkit-scrollbar {
+  width: 8px;
+}
+
+.result-layout-box::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 10px;
+}
+
+.result-layout-box::-webkit-scrollbar-thumb {
+  background: var(--sage);
+  border-radius: 10px;
+}
+
+.result-layout-box::-webkit-scrollbar-thumb:hover {
+  background: var(--sageLight);
 }
 
 .result-layout-item {
-  padding: 8px 0;
+  padding: 12px 0;
   font-size: 16px;
   color: var(--textDark);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.field-label {
+  font-weight: 600;
+  color: var(--sage);
+  flex-shrink: 0;
+  min-width: 140px;
+}
+
+.field-value {
+  color: var(--textDark);
+  text-align: right;
+  word-break: break-word;
+}
+
+.field-input {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid var(--sage);
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--textDark);
+  background: var(--white);
+  text-align: right;
+  transition: all 0.2s;
+}
+
+.field-input:focus {
+  outline: none;
+  border-color: var(--sageLight);
+  box-shadow: 0 0 0 3px rgba(105, 132, 116, 0.1);
 }
 
 .input-section {

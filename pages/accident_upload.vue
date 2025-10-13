@@ -19,36 +19,149 @@
       <div class="container">
         <section class="main-section card">
           <div class="section-header">
-            <h2 class="section-title">Upload Car Accident Documentation</h2>
+            <h2 class="section-title">Upload Car Accident Form</h2>
             <p class="section-subtitle">Upload accident reports, photos, or related documents</p>
           </div>
 
           <!-- Result Layout Box -->
           <div class="result-layout-box">
-            <div class="result-layout-item">Manufacturer :</div>
-            <div class="result-layout-item">Model Year :</div>
-            <div class="result-layout-item">Model :</div>
-            <div class="result-layout-item">VIN :</div>
-            <div class="result-layout-item">CCM :</div>
-            <div class="result-layout-item">Registration :</div>
-            <div class="result-layout-item">Type :</div>
-            <div class="result-layout-item">Engine :</div>
-            <div class="result-layout-item">Power :</div>
-            <div class="result-layout-item">Weight :</div>
-            <div class="result-layout-item">Driver Name :</div>
-            <div class="result-layout-item">Driver Surname :</div>
-            <div class="result-layout-item">Age :</div>
-            <div class="result-layout-item">Sex :</div>
-            <div class="result-layout-item">License No :</div>
-            <div class="result-layout-item">Street :</div>
-            <div class="result-layout-item">Subdistrict :</div>
-            <div class="result-layout-item">District :</div>
-            <div class="result-layout-item">Province :</div>
-            <div class="result-layout-item">Zipcode :</div>
-            <div class="result-layout-item">Damaged Parts :</div>
-            <div class="result-layout-item">Repair Needed :</div>
-            <div class="result-layout-item">Insurance Company :</div>
-            <div class="result-layout-item">Policy No :</div>
+            <!-- Action Buttons -->
+            <div class="result-box-actions">
+              <button @click="toggleEdit" class="icon-btn" :title="isEditing ? 'Lock' : 'Edit'">
+                <svg v-if="!isEditing" viewBox="0 0 24 24" width="18" height="18">
+                  <path fill="currentColor" d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"/>
+                </svg>
+                <svg v-else viewBox="0 0 24 24" width="18" height="18">
+                  <path fill="currentColor" d="M12,17A2,2 0 0,0 14,15C14,13.89 13.1,13 12,13A2,2 0 0,0 10,15A2,2 0 0,0 12,17M18,8A2,2 0 0,1 20,10V20A2,2 0 0,1 18,22H6A2,2 0 0,1 4,20V10C4,8.89 4.9,8 6,8H7V6A5,5 0 0,1 12,1A5,5 0 0,1 17,6V8H18M12,3A3,3 0 0,0 9,6V8H15V6A3,3 0 0,0 12,3Z"/>
+                </svg>
+              </button>
+              <button @click="copyResults" class="icon-btn" title="Copy Results">
+                <svg viewBox="0 0 24 24" width="18" height="18">
+                  <path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"/>
+                </svg>
+              </button>
+            </div>
+            
+            <div class="result-layout-item">
+              <span class="field-label">Manufacturer:</span>
+              <input v-if="isEditing && result" v-model="result.manufacturer" class="field-input" />
+              <span v-else class="field-value">{{ result?.manufacturer || '-' }}</span>
+            </div>
+            <div class="result-layout-item">
+              <span class="field-label">Model Year:</span>
+              <input v-if="isEditing && result" v-model="result.model_year" class="field-input" />
+              <span v-else class="field-value">{{ result?.model_year || '-' }}</span>
+            </div>
+            <div class="result-layout-item">
+              <span class="field-label">Model:</span>
+              <input v-if="isEditing && result" v-model="result.model" class="field-input" />
+              <span v-else class="field-value">{{ result?.model || '-' }}</span>
+            </div>
+            <div class="result-layout-item">
+              <span class="field-label">VIN:</span>
+              <input v-if="isEditing && result" v-model="result.vin" class="field-input" />
+              <span v-else class="field-value">{{ result?.vin || '-' }}</span>
+            </div>
+            <div class="result-layout-item">
+              <span class="field-label">CCM:</span>
+              <input v-if="isEditing && result" v-model="result.ccm" class="field-input" />
+              <span v-else class="field-value">{{ result?.ccm || '-' }}</span>
+            </div>
+            <div class="result-layout-item">
+              <span class="field-label">Registration:</span>
+              <input v-if="isEditing && result" v-model="result.registration" class="field-input" />
+              <span v-else class="field-value">{{ result?.registration || '-' }}</span>
+            </div>
+            <div class="result-layout-item">
+              <span class="field-label">Type:</span>
+              <input v-if="isEditing && result" v-model="result.type" class="field-input" />
+              <span v-else class="field-value">{{ result?.type || '-' }}</span>
+            </div>
+            <div class="result-layout-item">
+              <span class="field-label">Engine:</span>
+              <input v-if="isEditing && result" v-model="result.engine" class="field-input" />
+              <span v-else class="field-value">{{ result?.engine || '-' }}</span>
+            </div>
+            <div class="result-layout-item">
+              <span class="field-label">Power:</span>
+              <input v-if="isEditing && result" v-model="result.power" class="field-input" />
+              <span v-else class="field-value">{{ result?.power || '-' }}</span>
+            </div>
+            <div class="result-layout-item">
+              <span class="field-label">Weight:</span>
+              <input v-if="isEditing && result" v-model="result.weight" class="field-input" />
+              <span v-else class="field-value">{{ result?.weight || '-' }}</span>
+            </div>
+            <div class="result-layout-item">
+              <span class="field-label">Driver Name:</span>
+              <input v-if="isEditing && result" v-model="result.driver_name" class="field-input" />
+              <span v-else class="field-value">{{ result?.driver_name || '-' }}</span>
+            </div>
+            <div class="result-layout-item">
+              <span class="field-label">Driver Surname:</span>
+              <input v-if="isEditing && result" v-model="result.driver_surname" class="field-input" />
+              <span v-else class="field-value">{{ result?.driver_surname || '-' }}</span>
+            </div>
+            <div class="result-layout-item">
+              <span class="field-label">Age:</span>
+              <input v-if="isEditing && result" v-model="result.age" class="field-input" />
+              <span v-else class="field-value">{{ result?.age || '-' }}</span>
+            </div>
+            <div class="result-layout-item">
+              <span class="field-label">Sex:</span>
+              <input v-if="isEditing && result" v-model="result.sex" class="field-input" />
+              <span v-else class="field-value">{{ result?.sex || '-' }}</span>
+            </div>
+            <div class="result-layout-item">
+              <span class="field-label">License No:</span>
+              <input v-if="isEditing && result" v-model="result.license_no" class="field-input" />
+              <span v-else class="field-value">{{ result?.license_no || '-' }}</span>
+            </div>
+            <div class="result-layout-item">
+              <span class="field-label">Street:</span>
+              <input v-if="isEditing && result" v-model="result.street" class="field-input" />
+              <span v-else class="field-value">{{ result?.street || '-' }}</span>
+            </div>
+            <div class="result-layout-item">
+              <span class="field-label">Subdistrict:</span>
+              <input v-if="isEditing && result" v-model="result.subdistrict" class="field-input" />
+              <span v-else class="field-value">{{ result?.subdistrict || '-' }}</span>
+            </div>
+            <div class="result-layout-item">
+              <span class="field-label">District:</span>
+              <input v-if="isEditing && result" v-model="result.district" class="field-input" />
+              <span v-else class="field-value">{{ result?.district || '-' }}</span>
+            </div>
+            <div class="result-layout-item">
+              <span class="field-label">Province:</span>
+              <input v-if="isEditing && result" v-model="result.province" class="field-input" />
+              <span v-else class="field-value">{{ result?.province || '-' }}</span>
+            </div>
+            <div class="result-layout-item">
+              <span class="field-label">Zipcode:</span>
+              <input v-if="isEditing && result" v-model="result.zipcode" class="field-input" />
+              <span v-else class="field-value">{{ result?.zipcode || '-' }}</span>
+            </div>
+            <div class="result-layout-item">
+              <span class="field-label">Damaged Parts:</span>
+              <input v-if="isEditing && result" v-model="result.damaged_parts" class="field-input" />
+              <span v-else class="field-value">{{ result?.damaged_parts || '-' }}</span>
+            </div>
+            <div class="result-layout-item">
+              <span class="field-label">Repair Needed:</span>
+              <input v-if="isEditing && result" v-model="result.repair_needed" class="field-input" />
+              <span v-else class="field-value">{{ result?.repair_needed || '-' }}</span>
+            </div>
+            <div class="result-layout-item">
+              <span class="field-label">Insurance Company:</span>
+              <input v-if="isEditing && result" v-model="result.insurance_company" class="field-input" />
+              <span v-else class="field-value">{{ result?.insurance_company || '-' }}</span>
+            </div>
+            <div class="result-layout-item">
+              <span class="field-label">Policy No:</span>
+              <input v-if="isEditing && result" v-model="result.policy_no" class="field-input" />
+              <span v-else class="field-value">{{ result?.policy_no || '-' }}</span>
+            </div>
           </div>
 
           <!-- File Upload Section -->
@@ -101,19 +214,6 @@
             {{ info }}
           </div>
 
-          <!-- Preview Section -->
-          <div v-if="result" class="preview-section">
-            <div class="preview-header">
-              <h3 class="preview-title">Extracted Information</h3>
-            </div>
-            
-            <div class="preview-grid">
-              <div v-for="(v, k) in result" :key="k" class="preview-item">
-                <div class="preview-key">{{ k }}</div>
-                <div class="preview-value">{{ v }}</div>
-              </div>
-            </div>
-          </div>
         </section>
       </div>
     </main>
@@ -128,6 +228,7 @@ const submitting = ref(false);
 const error = ref("");
 const info = ref("");
 const result = ref(null);
+const isEditing = ref(false);
 
 function onFile(e) {
   const f = e.target.files?.[0];
@@ -191,6 +292,48 @@ async function submit() {
     error.value = `Failed to process accident report: ${e.message}`;
   } finally {
     submitting.value = false;
+  }
+}
+
+function toggleEdit() {
+  isEditing.value = !isEditing.value;
+  info.value = isEditing.value ? "Editing mode enabled" : "Editing mode disabled";
+}
+
+async function copyResults() {
+  try {
+    // Format the data as shown in the box
+    const textToCopy = `
+Manufacturer: ${result.value?.manufacturer || '-'}
+Model Year: ${result.value?.model_year || '-'}
+Model: ${result.value?.model || '-'}
+VIN: ${result.value?.vin || '-'}
+CCM: ${result.value?.ccm || '-'}
+Registration: ${result.value?.registration || '-'}
+Type: ${result.value?.type || '-'}
+Engine: ${result.value?.engine || '-'}
+Power: ${result.value?.power || '-'}
+Weight: ${result.value?.weight || '-'}
+Driver Name: ${result.value?.driver_name || '-'}
+Driver Surname: ${result.value?.driver_surname || '-'}
+Age: ${result.value?.age || '-'}
+Sex: ${result.value?.sex || '-'}
+License No: ${result.value?.license_no || '-'}
+Street: ${result.value?.street || '-'}
+Subdistrict: ${result.value?.subdistrict || '-'}
+District: ${result.value?.district || '-'}
+Province: ${result.value?.province || '-'}
+Zipcode: ${result.value?.zipcode || '-'}
+Damaged Parts: ${result.value?.damaged_parts || '-'}
+Repair Needed: ${result.value?.repair_needed || '-'}
+Insurance Company: ${result.value?.insurance_company || '-'}
+Policy No: ${result.value?.policy_no || '-'}
+    `.trim();
+    
+    await navigator.clipboard.writeText(textToCopy);
+    info.value = "Results copied to clipboard!";
+  } catch (e) {
+    error.value = "Failed to copy results";
   }
 }
 </script>
@@ -319,18 +462,90 @@ async function submit() {
   border: 2px solid #E5E7EB;
   border-radius: 12px;
   padding: 20px;
+  padding-top: 50px;
   margin: 20px auto;
   background: #f8fafc;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   max-width: 400px;
   max-height: 400px;
   overflow-y: auto;
+  position: relative;
+}
+
+.result-box-actions {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  gap: 8px;
+  z-index: 10;
+}
+
+.icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--white);
+  border: 2px solid var(--sage);
+  color: var(--sage);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.icon-btn:hover {
+  background: var(--sage);
+  color: var(--white);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(105, 132, 116, 0.3);
+}
+
+.icon-btn:active {
+  transform: translateY(0);
 }
 
 .result-layout-item {
-  padding: 8px 0;
+  padding: 12px 0;
   font-size: 16px;
   color: var(--textDark);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.field-label {
+  font-weight: 600;
+  color: var(--sage);
+  flex-shrink: 0;
+  min-width: 140px;
+}
+
+.field-value {
+  color: var(--textDark);
+  text-align: right;
+  word-break: break-word;
+}
+
+.field-input {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid var(--sage);
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--textDark);
+  background: var(--white);
+  text-align: right;
+  transition: all 0.2s;
+}
+
+.field-input:focus {
+  outline: none;
+  border-color: var(--sageLight);
+  box-shadow: 0 0 0 3px rgba(105, 132, 116, 0.1);
 }
 
 /* Custom scrollbar styling */

@@ -429,7 +429,7 @@
 
 /* Enhanced Cards */
 .card {
-  background: var(--white);
+  background: white;
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   border: none;

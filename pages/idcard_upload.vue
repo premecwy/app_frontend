@@ -26,7 +26,7 @@
           <!-- Result Layout Box -->
           <div class="result-layout-box">
             <div class="result-layout-item">Result layout</div>
-            <div class="result-layout-item">Id: :</div>
+            <div class="result-layout-item">Id :</div>
             <div class="result-layout-item">Name :</div>
             <div class="result-layout-item">Age</div>
             <div class="result-layout-item">Address :</div>

@@ -286,7 +286,7 @@ async function submit() {
 .main-section {
   padding: clamp(24px, 4vw, 32px);
   margin-bottom: 24px;
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  background: var(--white);
   border: 2px solid var(--sage);
 }
 

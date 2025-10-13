@@ -5,20 +5,20 @@
       <div class="container">
         <div class="topbar-content">
           <!-- <button class="circle-btn" aria-label="settings" @click="go('/settings')">
-            <svg viewBox="0 0 24 24" width="22" height="22">
-              <path fill="currentColor"
-                d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm9.4 3.5c0-.47-.03-.93-.1-1.38l2.02-1.57-2-3.46-2.47 1a7.7 7.7 0 0 0-2.38-1.38l-.37-2.6h-4.84l-.37 2.6a7.7 7.7 0 0 0-2.38 1.38l-2.47-1-2 3.46 2.02 1.57c-.07.45-.1.91-.1 1.38s.03.93.1 1.38L1.68 15l2 3.46 2.47-1a7.7 7.7 0 0 0 2.38 1.38l.37 2.6h4.84l.37-2.6a7.7 7.7 0 0 0 2.38-1.38l2.47 1 2-3.46-2.02-1.57c.07-.45.1-.91.1-1.38Z"/>
-            </svg>
+          <svg viewBox="0 0 24 24" width="22" height="22">
+            <path fill="currentColor"
+              d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm9.4 3.5c0-.47-.03-.93-.1-1.38l2.02-1.57-2-3.46-2.47 1a7.7 7.7 0 0 0-2.38-1.38l-.37-2.6h-4.84l-.37 2.6a7.7 7.7 0 0 0-2.38 1.38l-2.47-1-2 3.46 2.02 1.57c-.07.45-.1.91-.1 1.38s.03.93.1 1.38L1.68 15l2 3.46 2.47-1a7.7 7.7 0 0 0 2.38 1.38l.37 2.6h4.84l.37-2.6a7.7 7.7 0 0 0 2.38-1.38l2.47 1 2-3.46-2.02-1.57c.07-.45.1-.91.1-1.38Z"/>
+          </svg>
           </button> -->
 
-          <div class="spacer"></div>
+        <div class="spacer"></div>
 
-          <RouterLink class="circle-btn" aria-label="user" to="/user">
-            <svg viewBox="0 0 24 24" width="22" height="22">
-              <path fill="currentColor"
-                d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-4.42 0-8 2.24-8 5v1h16v-1c0-2.76-3.58-5-8-5Z"/>
-            </svg>
-          </RouterLink>
+        <RouterLink class="circle-btn" aria-label="user" to="/user">
+          <svg viewBox="0 0 24 24" width="22" height="22">
+            <path fill="currentColor"
+              d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-4.42 0-8 2.24-8 5v1h16v-1c0-2.76-3.58-5-8-5Z"/>
+          </svg>
+        </RouterLink>
         </div>
       </div>
     </header>
@@ -28,7 +28,7 @@
         <!-- Enhanced Hero Section -->
         <RouterLink class="hero card" :style="heroCardStyle" to="/llm">
           <div class="hero-content">
-            <div class="hero-text">
+          <div class="hero-text">
               <h1 class="hero-title">
                 <span class="line">Talk with LUMA</span>
                 <!-- <span class="line">with LUMA</span> -->
@@ -43,7 +43,7 @@
         <div class="grid grid-2 actions-grid">
           <RouterLink class="card action" :style="taskCardStyle" to="/task">
             <div class="action-content">
-              <div class="action-icon">📄✔️</div>
+            <div class="action-icon">📄✔️</div>
               <div class="action-text">
                 <h3 class="action-title">Your Task</h3>
                 <p class="action-description">Manage your daily tasks</p>
@@ -53,7 +53,7 @@
 
           <RouterLink class="card action" :style="fillCardStyle" to="/fillform">
             <div class="action-content">
-              <div class="action-icon">📝</div>
+            <div class="action-icon">📝</div>
               <div class="action-text">
                 <h3 class="action-title">Fill Form</h3>
                 <p class="action-description">Auto-fill forms quickly</p>
@@ -73,9 +73,9 @@
               </svg>
             </button>
           </header>
-          
+
           <div class="history-content">
-            <div class="timeline">
+          <div class="timeline">
               <div class="timeline-item">
                 <div class="dot pink"></div>
                 <div class="entry">Hello, Is there anything I forgot to do?</div>

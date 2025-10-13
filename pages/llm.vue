@@ -1,393 +1,309 @@
 <template>
-  <div class="llm-page">
-    <header class="topbar">
-      <div class="container">
-        <div class="topbar-content">
-          <button class="back-btn" @click="$router.back()" aria-label="Go back">
-            <svg viewBox="0 0 24 24" width="20" height="20">
-              <path fill="currentColor" d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
-            </svg>
-          </button>
-          <h1 class="page-title">LUMA Talk</h1>
-          <div class="spacer"></div>
-          <button class="settings-btn" @click="showTextArea = !showTextArea" :aria-pressed="showTextArea"
-            aria-label="Keyboard">
-            <svg viewBox="0 0 24 24" width="28" height="28">
-              <path fill="currentColor"
-                d="M20 5H4C2.9 5 2 5.9 2 7V17C2 18.1 2.9 19 4 19H20C21.1 19 22 18.1 22 17V7C22 5.9 21.1 5 20 5M20 17H4V7H20V17M5 8H7V10H5V8M8 8H10V10H8V8M11 8H13V10H11V8M14 8H16V10H14V8M17 8H19V10H17V8M5 11H7V13H5V11M8 11H10V13H8V11M11 11H13V13H11V11M14 11H16V13H14V11M17 11H19V13H17V11M8 14H16V16H8V14Z" />
-            </svg>
-          </button>
-        </div>
-      </div>
-    </header>
+	<div class="llm-page">
+		<header class="topbar">
+			<div class="container">
+				<div class="topbar-content">
+					<button class="back-btn" @click="$router.back()" aria-label="Go back">
+						<svg viewBox="0 0 24 24" width="20" height="20">
+							<path fill="currentColor"
+								d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
+						</svg>
+					</button>
+					<h1 class="page-title">LUMA Talk</h1>
+					<div class="spacer"></div>
+					<button class="settings-btn" @click="showTextArea = !showTextArea" :aria-pressed="showTextArea"
+						aria-label="Keyboard">
+						<svg viewBox="0 0 24 24" width="28" height="28">
+							<path fill="currentColor"
+								d="M20 5H4C2.9 5 2 5.9 2 7V17C2 18.1 2.9 19 4 19H20C21.1 19 22 18.1 22 17V7C22 5.9 21.1 5 20 5M20 17H4V7H20V17M5 8H7V10H5V8M8 8H10V10H8V8M11 8H13V10H11V8M14 8H16V10H14V8M17 8H19V10H17V8M5 11H7V13H5V11M8 11H10V13H8V11M11 11H13V13H11V11M14 11H16V13H14V11M17 11H19V13H17V11M8 14H16V16H8V14Z" />
+						</svg>
+					</button>
+				</div>
+			</div>
+		</header>
 
-    <main class="page">
-      <div class="container">
-        <div class="dog-container">
-          <div v-if="!showTextArea" class="big-dog" :class="{ shake: isShaking }" @click="handleDogClick">🐶</div>
+		<main class="page">
+			<div class="container">
+				<div class="dog-container">
+					<div v-if="!showTextArea" class="big-dog" :class="{ shake: isShaking }" @click="handleDogClick">🐶</div>
 
-          <div v-if="showTextArea" class="chat-wrapper">
-              <!-- Chat History Section -->
-              <div class="chat-history" ref="chatHistory">
-                <div v-if="messages.length === 0" class="empty-chat">
-                  <div class="empty-icon">💬</div>
-                  <p>Start a conversation with LUMA!</p>
-      </div>
-                <div v-else class="messages-list">
-                  <div v-for="(msg, idx) in messages" :key="idx" class="message-row" :class="msg.role">
-                    <div class="message-bubble">
-                      <div class="message-content">{{ msg.content }}</div>
-                    </div>
-                  </div>
-                  <div v-if="loading" class="message-row assistant">
-                    <div class="message-bubble loading">
-                      <div class="typing-indicator">
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+					<div v-if="showTextArea" class="chat-wrapper">
+						<!-- Chat History -->
+						<div class="chat-history" ref="chatHistory">
+							<div v-if="messages.length === 0" class="empty-chat">
+								<div class="empty-icon">💬</div>
+								<p>Start a conversation with LUMA!</p>
+							</div>
 
-              <!-- Text Area Container -->
-              <div class="text-area-container">
-                <textarea v-model="messageText" class="message-input" placeholder="Type your message here..." rows="2"
-                  @keyup.enter.ctrl="sendMessage"></textarea>
-                <div class="text-area-actions">
-                  <button class="btn-send" @click="sendMessage" :disabled="!messageText.trim()"
-                    style="display: flex !important;">
-                    <svg viewBox="0 0 24 24" width="20" height="20">
-                      <path fill="currentColor" d="M2,21L23,12L2,3V10L17,12L2,14V21Z" />
-                    </svg>
-                    Send
-                  </button>
-                  <button class="btn-clear" @click="messageText = ''" style="display: flex !important;">Clear</button>
-                </div>
-              </div>
-            </div>
-        </div>
-      </div>
-    </main>
-  </div>
+							<div v-else class="messages-list">
+								<div v-for="(msg, idx) in messages" :key="idx" class="message-row" :class="msg.role">
+									<div class="message-bubble">
+										<div class="message-content">{{ msg.content }}</div>
+									</div>
+								</div>
+
+								<div v-if="loading" class="message-row assistant">
+									<div class="message-bubble loading">
+										<div class="typing-indicator">
+											<span></span><span></span><span></span>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<!-- ✅ ปุ่มยืนยันเพิ่มซ้ำ -->
+						<div v-if="pendingDuplicate" class="duplicate-confirm" style="text-align:center; margin:10px 0;">
+							<p style="margin-bottom:10px; color:#333;">พบรายการซ้ำ ต้องการเพิ่มงานนี้อีกครั้งหรือไม่?</p>
+							<button @click="confirmDuplicate"
+								style="background:#4CAF50; color:white; border:none; padding:10px 20px; border-radius:8px; margin-right:10px; cursor:pointer;">
+								✅ ยืนยันเพิ่มซ้ำ
+							</button>
+							<button @click="cancelDuplicate"
+								style="background:#f44336; color:white; border:none; padding:10px 20px; border-radius:8px; cursor:pointer;">
+								❌ ยกเลิก
+							</button>
+						</div>
+
+						<!-- Text Area -->
+						<div class="text-area-container">
+							<textarea v-model="messageText" class="message-input"
+								placeholder="Type your message here..." rows="2" @keyup.enter.ctrl="sendMessage"></textarea>
+
+							<div class="text-area-actions">
+								<button class="btn-send" @click="sendMessage" :disabled="!messageText.trim()">
+									<svg viewBox="0 0 24 24" width="20" height="20">
+										<path fill="currentColor" d="M2,21L23,12L2,3V10L17,12L2,14V21Z" />
+									</svg>
+									Send
+								</button>
+								<button class="btn-clear" @click="messageText = ''">Clear</button>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</main>
+	</div>
 </template>
 
 <script>
 export default {
-  name: 'LlmPage',
-  data() {
-    return {
-      // Where to show result from chat and user
-      url: localStorage.getItem('chat_url') || 'http://127.0.0.1:8000/chat',
-      payloadKey: localStorage.getItem('chat_key') || 'text',
-      timeoutMs: Number(localStorage.getItem('chat_timeout') || 1000000),
-      showSettings: false,
-      draft: '',
-      loading: false,
-      messages: [
-        { role: 'user', content: 'Hello! Can you help me with my tasks today?' },
-        { role: 'assistant', content: 'Of course! I\'d be happy to help you with your tasks. What would you like to work on first?' },
-        { role: 'user', content: 'I need to organize my schedule for this week.' },
-        { role: 'assistant', content: 'Great! Let me help you organize your schedule. You can start by telling me about your important tasks or deadlines this week, and I\'ll help you prioritize them.' },
-        { role: 'user', content: 'I have a meeting on Wednesday and a project deadline on Friday.' },
-        { role: 'assistant', content: 'Perfect! I\'ve noted that you have:\n\n1. Meeting on Wednesday\n2. Project deadline on Friday\n\nWould you like me to help you break down the project into smaller tasks to ensure you meet the Friday deadline?' },
-      ],
-      isShaking: false,
-      showTextArea: false,
-      messageText: '',
-      mediaRecorder: null,
-      isRecording: false,
-    }
-  },
-  computed: {
-    canSend() {
-      // Adjusted to use the correct data property for the text area
-      return this.messageText.trim().length > 0;
-    },
-  },
-  methods: {
-    async handleDogClick() {
-      this.isShaking = true;
-      setTimeout(() => (this.isShaking = false), 1000);
+	name: 'LlmPage',
+	data() {
+		return {
+			url: localStorage.getItem('chat_url') || 'http://127.0.0.1:8000/chat',
+			payloadKey: localStorage.getItem('chat_key') || 'text',
+			timeoutMs: Number(localStorage.getItem('chat_timeout') || 1000000),
+			showSettings: false,
+			draft: '',
+			loading: false,
+			messages: [],
+			isShaking: false,
+			showTextArea: false,
+			messageText: '',
+			mediaRecorder: null,
+			isRecording: false,
+			pendingDuplicate: null, // 🆕 สำหรับเก็บ payload งานซ้ำ
+		}
+	},
 
-      if (this.isRecording) {
-        if (this.mediaRecorder && this.mediaRecorder.state === "recording") {
-          this.mediaRecorder.stop();
-        }
-        this.isRecording = false;
-        console.log("🔁 stopping recording...");
-        return;
-      }
+	computed: {
+		canSend() {
+			return this.messageText.trim().length > 0;
+		},
+	},
 
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        this.mediaRecorder = new MediaRecorder(stream);
-        let chunks = [];
+	methods: {
+		async handleDogClick() {
+			this.isShaking = true;
+			setTimeout(() => (this.isShaking = false), 1000);
 
-        this.mediaRecorder.ondataavailable = (e) => {
-          console.log("📦 chunk received:", e.data.size);
-          chunks.push(e.data);
-        };
+			if (this.isRecording) {
+				if (this.mediaRecorder && this.mediaRecorder.state === "recording") {
+					this.mediaRecorder.stop();
+				}
+				this.isRecording = false;
+				return;
+			}
 
-        this.mediaRecorder.onstop = async () => {
-          console.log("🛑 onstop called");
-          const audioBlob = new Blob(chunks, { type: "audio/wav" });
-          chunks = [];
-          console.log("🎧 audio blob size:", audioBlob.size);
+			try {
+				const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+				this.mediaRecorder = new MediaRecorder(stream);
+				let chunks = [];
+				this.mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
+				this.mediaRecorder.onstop = async () => {
+					const audioBlob = new Blob(chunks, { type: "audio/wav" });
+					chunks = [];
+					if (audioBlob.size === 0) return;
 
-          if (audioBlob.size === 0) {
-            console.warn("⚠️ Audio blob is empty, not sending.");
-            return;
-          }
+					const formData = new FormData();
+					formData.append("file", audioBlob, "audio.wav");
 
-          try {
-            const formData = new FormData();
-            formData.append("file", audioBlob, "audio.wav");
-            console.log("🚀 sending to STT API...");
+					const sttRes = await fetch("http://127.0.0.1:8000/stt", { method: "POST", body: formData });
+					const sttData = await sttRes.json();
+					const recognizedText = sttData.text;
 
-            const sttRes = await fetch("http://127.0.0.1:8000/stt", {
-              method: "POST",
-              body: formData,
-            });
+					if (recognizedText) {
+						this.messages.push({ role: 'user', content: recognizedText });
+						this.$nextTick(() => this.scrollToBottom());
+						const chatReply = await this.callApi(recognizedText);
+						this.messages.push({ role: 'assistant', content: chatReply });
+						this.$nextTick(() => this.scrollToBottom());
+					}
+				};
+				this.mediaRecorder.start();
+				this.isRecording = true;
+			} catch {
+				alert("Cannot access microphone.");
+			}
+		},
 
-            if (!sttRes.ok) throw new Error(`STT server error! status: ${sttRes.status}`);
-            const sttData = await sttRes.json();
-            const recognizedText = sttData.text;
+		async sendMessage() {
+			const q = this.messageText.trim();
+			if (!q) return;
+			this.messages.push({ role: 'user', content: q });
+			this.messageText = '';
+			this.loading = true;
+			this.$nextTick(() => this.scrollToBottom());
+			try {
+				const reply = await this.callApi(q);
+				this.messages.push({ role: 'assistant', content: reply });
+			} catch (e) {
+				this.messages.push({ role: 'assistant', content: '❌ ' + e.message });
+			} finally {
+				this.loading = false;
+				this.$nextTick(() => this.scrollToBottom());
+			}
+		},
 
-                  if (recognizedText) {
-                    console.log("💬 recognized text:", recognizedText);
-                    this.messages.push({ role: 'user', content: recognizedText });
-                    this.$nextTick(() => {
-                      this.scrollToBottom();
-                    });
+		scrollToBottom() {
+			const chatHistory = this.$refs.chatHistory;
+			if (chatHistory) chatHistory.scrollTop = chatHistory.scrollHeight;
+		},
 
-                    console.log('🚀 Sending to /chat API...');
-                    const chatReply = await this.callApi(recognizedText);
-                    this.messages.push({ role: 'assistant', content: chatReply });
-                    console.log("🤖 LLM replied:", chatReply);
-                    this.$nextTick(() => {
-                      this.scrollToBottom();
-                    });
+		async callApi(q) {
+			this.persist();
 
-              if (chatReply) {
-                try {
-                  console.log("▶️ Requesting TTS from server...");
-                  const ttsRes = await fetch("http://localhost:8000/tts", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ message: chatReply }),
-                  });
-                  if (!ttsRes.ok) throw new Error(`TTS server responded with status ${ttsRes.status}`);
+			// ⏱️ เพิ่ม timeout เป็น 60 วินาที
+			this.timeoutMs = Math.max(this.timeoutMs, 60000);
+			const t = this.controllerWithTimeout(this.timeoutMs);
 
-                  const ttsAudioBlob = await ttsRes.blob();
-                  const audioUrl = URL.createObjectURL(ttsAudioBlob);
-                  const audio = new Audio(audioUrl);
-                  audio.play();
-                  audio.onended = () => URL.revokeObjectURL(audioUrl);
-                  console.log("🔊 Playing TTS audio for:", chatReply);
+			try {
+				console.log("🌐 Sending to backend:", this.url, "payload:", q);
 
-                } catch (ttsErr) {
-                  console.warn("⚠️ TTS Error:", ttsErr);
-                }
-              }
-            } else {
-              alert("STT returned no text");
-            }
-          } catch (err) {
-            console.error("❌ Error in onstop handler:", err);
-            alert(`An error occurred: ${err.message}`);
-          }
-        };
+				const res = await fetch(this.url, {
+					method: "POST",
+					headers: {
+						"Accept": "application/json, text/plain, */*",
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify({ [this.payloadKey || "text"]: q }),
+					mode: "cors",
+					signal: t.ctrl.signal,
+				});
 
-        this.mediaRecorder.start();
-        this.isRecording = true;
-        console.log("🎙️ recording started...");
+				t.cancel();
 
-      } catch (err) {
-        console.error("Mic error:", err);
-        alert("Cannot access microphone.");
-      }
-    },
+				if (!res.ok) {
+					const text = await res.text();
+					throw new Error(`HTTP ${res.status} ${res.statusText}\n\n${text}`);
+				}
 
-    async sendMessage() {
-      const q = this.messageText.trim();
-      if (!q) return;
+				const ct = res.headers.get("content-type") || "";
+				let data;
+				if (ct.includes("application/json")) {
+					data = await res.json();
+				} else {
+					try {
+						data = JSON.parse(await res.text());
+					} catch {
+						data = { result: await res.text() };
+					}
+				}
 
-      this.messages.push({ role: 'user', content: q });
-      this.messageText = '';
-      this.loading = true;
-      
-      this.$nextTick(() => {
-        this.scrollToBottom();
-      });
+				console.log("✅ Cloud Run responded:", data);
 
-      try {
-        const reply = await this.callApi(q);
-        this.messages.push({ role: 'assistant', content: reply });
-        this.$nextTick(() => {
-          this.scrollToBottom();
-        });
-      } catch (e) {
-        this.messages.push({ role: 'assistant', content: 'Request failed: ' + (e && e.message ? e.message : String(e)) });
-        this.$nextTick(() => {
-          this.scrollToBottom();
-        });
-      } finally {
-        this.loading = false;
-      }
-    },
-    
-    scrollToBottom() {
-      const chatHistory = this.$refs.chatHistory;
-      if (chatHistory) {
-        chatHistory.scrollTop = chatHistory.scrollHeight;
-      }
-    },
+				// ✅ ตรวจจับเคส duplicate จาก backend จริง
+				if (data.errors && Array.isArray(data.errors)) {
+					const duplicate = data.errors.find(e => e.intent === "ADD");
+					if (duplicate) {
+						this.pendingDuplicate = duplicate.output.filter(x => x.id === "-1");
+						const msg = duplicate.message || "พบงานซ้ำ ต้องการเพิ่มอีกไหม?";
+						this.messages.push({ role: "assistant", content: msg });
+						this.$nextTick(() => this.scrollToBottom());
+						return msg;
+					}
+				}
 
-    persist() {
-      localStorage.setItem('chat_url', this.url);
-      localStorage.setItem('chat_key', this.payloadKey);
-      localStorage.setItem('chat_timeout', String(this.timeoutMs));
-    },
+				// ปกติ
+				return this.pickAnswer(data);
 
-    uid() {
-      return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
-    },
+			} catch (e) {
+				console.error("❌ Error calling backend:", e);
+				const hints = [
+					"ตรวจสอบว่า Cloud Run ยังออนไลน์อยู่หรือไม่",
+					"ลองเพิ่ม read timeout ใน backend (เช่น 60s ขึ้นไป)",
+					"ตรวจสอบว่า response มี JSON หรือไม่ (errors.intent = ADD)",
+				];
+				throw new Error(`${e.message || e}\n\nHints:\n- ${hints.join("\n- ")}`);
+			}
+		},
 
-    push(role, text) {
-      this.messages.push({ id: this.uid(), role, text: String(text) });
-      this.$nextTick(() => {
-        const el = this.$refs.scrollArea;
-        if (el) el.scrollTop = el.scrollHeight;
-      });
-    },
 
-    pickAnswer(obj) {
-      if (obj && typeof obj === 'object') {
-        if ('message' in obj && obj.message != null) return String(obj.message);
-        if ('response' in obj && obj.response != null) return String(obj.response);
-        if ('answer' in obj && obj.answer != null) return String(obj.answer);
-        if ('text' in obj && obj.text != null) return String(obj.text);
-        if ('output' in obj && obj.output != null) return String(obj.output);
-        const c = Array.isArray(obj.choices) && obj.choices[0];
-        if (c?.message?.content != null) return String(c.message.content);
-        if (c?.text != null) return String(c.text);
-        try {
-          return JSON.stringify(obj, null, 2);
-        } catch {
-          return String(obj);
-        }
-      }
-      return String(obj ?? '');
-    },
 
-    controllerWithTimeout(ms) {
-      const ctrl = new AbortController();
-      const id = setTimeout(() => {
-        try {
-          ctrl.abort(new DOMException('Timeout', 'AbortError'));
-        } catch (e) {
-          ctrl.abort();
-        }
-      }, ms);
-      return { ctrl, cancel: () => clearTimeout(id) };
-    },
+		async confirmDuplicate() {
+			if (!this.pendingDuplicate) return;
+			try {
+				const res = await fetch(this.url, {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ tasks: this.pendingDuplicate }),
+				});
+				const data = await res.json();
+				this.messages.push({ role: "assistant", content: "✅ เพิ่มงานซ้ำสำเร็จแล้วครับ!" });
+				console.log("✅ Duplicate added:", data);
+			} catch (err) {
+				this.messages.push({ role: "assistant", content: "❌ เกิดข้อผิดพลาดในการเพิ่มงานซ้ำ" });
+			}
+			this.pendingDuplicate = null;
+			this.$nextTick(() => this.scrollToBottom());
+		},
 
-    async callApi(q) {
-      this.persist();
-      console.log("⏱️ timeoutMs (before call):", this.timeoutMs);
-      if (!this.timeoutMs|| this.timeoutMs < 100000){
-        this.timeoutMs = 1000000; // 1000s
-        localStorage.setItem('chat_timeout', String(this.timeoutMs));
-        console.log("⚠️ timeoutMs was too low, reset to:", this.timeoutMs);
-      }
-      const t = this.controllerWithTimeout(this.timeoutMs);
-      try {
-        const res = await fetch(this.url, {
-          method: 'POST',
-          headers: {
-            'Accept': 'application/json, text/plain, */*',
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ [this.payloadKey || 'text']: q }),
-          mode: 'cors',
-          signal: t.ctrl.signal,
-        });
-        t.cancel();
+		cancelDuplicate() {
+			this.messages.push({ role: "assistant", content: "ยกเลิกการเพิ่มงานซ้ำแล้วครับ ✅" });
+			this.pendingDuplicate = null;
+			this.$nextTick(() => this.scrollToBottom());
+		},
 
-        const ct = res.headers.get('content-type') || '';
-        if (!res.ok) {
-          let bodyText = '';
-          try {
-            if (ct.includes('application/json')) {
-              const json = await res.json();
-              bodyText = this.pickAnswer(json) || JSON.stringify(json, null, 2);
-            } else {
-              bodyText = await res.text();
-            }
-          } catch (e) { /* ignore parsing error */ }
-          throw new Error('HTTP ' + res.status + ' ' + res.statusText + (bodyText ? '\n\n' + bodyText : ''));
-        }
+		controllerWithTimeout(ms) {
+			const ctrl = new AbortController();
+			const id = setTimeout(() => ctrl.abort(), ms);
+			return { ctrl, cancel: () => clearTimeout(id) };
+		},
 
-        if (ct.includes('application/json')) return this.pickAnswer(await res.json());
-        const txt = await res.text();
-        try {
-          return this.pickAnswer(JSON.parse(txt));
-        } catch {
-          return txt;
-        }
-      } catch (e) {
-        const hints = [];
-        try {
-          const u = new URL(this.url);
-          if (location.protocol === 'https:' && u.protocol === 'http:') {
-            hints.push('Mixed content: page is HTTPS but API is HTTP.');
-          }
-        } catch (er) { /* ignore url parsing error */ }
-        hints.push('CORS: enable on FastAPI (allow_origins=[\"*\"]...).');
-        hints.push('Check server is running and path is correct.');
-        hints.push('Timeout: ' + this.timeoutMs + 'ms');
-        throw new Error((e && e.message ? e.message : String(e)) + '\n\nHints:\n- ' + hints.join('\n- '));
-      }
-    },
+		persist() {
+			localStorage.setItem('chat_url', this.url);
+			localStorage.setItem('chat_key', this.payloadKey);
+			localStorage.setItem('chat_timeout', String(this.timeoutMs));
+		},
 
-    async handleSend() {
-      const q = this.draft.trim();
-      if (!q) return;
-      this.push('user', q);
-      this.draft = '';
-      this.loading = true;
-      try {
-        const reply = await this.callApi(q);
-        this.push('bot', reply);
-      } catch (e) {
-        this.push('bot', 'Request failed: ' + (e && e.message ? e.message : String(e)));
-      } finally {
-        this.loading = false;
-        if (this.$refs.inputEl) this.$refs.inputEl.focus();
-      }
-    },
-
-    async testConnection() {
-      this.loading = true;
-      try {
-        const r = await this.callApi('__ping__');
-        this.push('bot', 'Test OK: ' + r);
-      } catch (e) {
-        this.push('bot', 'Test failed: ' + (e && e.message ? e.message : String(e)));
-      } finally {
-        this.loading = false;
-      }
-    },
-  },
-  mounted() {
-    // This ref does not exist in the new template, so we can comment it out
-    // if (this.$refs.inputEl) this.$refs.inputEl.focus()
-  }
+		pickAnswer(obj) {
+			if (obj && typeof obj === 'object') {
+				if (obj.result) return String(obj.result);
+				if (obj.message) return String(obj.message);
+				if (obj.text) return String(obj.text);
+				try {
+					return JSON.stringify(obj, null, 2);
+				} catch {
+					return String(obj);
+				}
+			}
+			return String(obj ?? '');
+		},
+	},
 }
 </script>
-
 <style scoped>
 /* Enhanced Color Palette */
 :root {

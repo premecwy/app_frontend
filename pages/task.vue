@@ -341,7 +341,7 @@ async function loadTasks() {
   loading.value = true;
   pageError.value = "";
   try {
-    if (!accessToken.value) await fetchBackendToken(); // ดึง token ก่อนถ้ายังไม่มี
+    if (!accessToken.value) await fetchBackendToken();
 
     const res = await axios.get(`${backendBase}/api/task/my-tasks`, {
       headers: {
@@ -349,7 +349,10 @@ async function loadTasks() {
       },
     });
 
-    tasks.value = res.data || [];
+    // ✅ ดึง tasks จาก key "results" ตาม response ที่เห็นใน Postman
+    const raw = res.data?.results;
+    tasks.value = Array.isArray(raw) ? raw : [];
+
     console.log("✅ Tasks loaded:", tasks.value);
   } catch (e: any) {
     console.error("❌ Failed to load tasks:", e);
@@ -358,7 +361,6 @@ async function loadTasks() {
     loading.value = false;
   }
 }
-
 
 async function addQuick() {
   if (!quickName.value.trim() || !uid.value) return;

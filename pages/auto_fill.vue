@@ -36,7 +36,7 @@
         ></textarea>
       </div>
   
-            <div class="form-group">
+            <!-- <div class="form-group">
               <label class="form-label">Or Upload File</label>
               <div class="file-input-wrapper">
                 <input 
@@ -54,7 +54,7 @@
                 </label>
                 <span v-if="file" class="file-name">{{ file.name }}</span>
               </div>
-            </div>
+            </div> -->
           </div>
 
           <!-- Enhanced Action Buttons -->

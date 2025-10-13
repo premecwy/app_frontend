@@ -64,14 +64,20 @@
 
           <!-- Enhanced Task List -->
           <div v-if="tasks.length" class="task-list">
-            <div v-for="t in tasks" :key="t.id" class="task-item" :class="{ completed: t.done }" @click="showTaskDetails(t)">
-              <div class="task-checkbox">
-                <input type="checkbox" v-model="t.done" @change="toggleDone(t)" id="task-{{ t.id }}" @click.stop />
-                <label :for="'task-' + t.id" class="checkbox-label"></label>
-            </div>
+            <div v-for="t in sortedTasks" :key="t.id" class="task-item" :class="{ completed: t.done }" @click="showTaskDetails(t)">
               <div class="task-content">
                 <div class="task-header">
-                  <h3 class="task-name" :class="{ done: t.done }">{{ t.name }}</h3>
+                  <h3 class="task-name" :class="{ done: t.done }">
+                    <div class="task-name-wrapper">
+                      <div class="task-checkbox-inline">
+                        <input type="checkbox" v-model="t.done" @change="toggleDone(t)" :id="'task-inline-' + t.id" @click.stop />
+                        <label :for="'task-inline-' + t.id" class="checkbox-label-inline"></label>
+            </div>
+                      <span v-if="t.date" class="task-date">{{ formatDateShort(t.date) }}</span>
+                      <span v-if="t.time" class="task-time">{{ formatTime(t.time) }}</span>
+                      <span class="task-text">{{ t.name }}</span>
+                </div>
+                  </h3>
                   <div class="task-actions" @click.stop>
                     <button class="action-btn edit-btn" title="Edit task" @click="startEdit(t)">
                       <svg viewBox="0 0 24 24" width="16" height="16">
@@ -83,9 +89,9 @@
                         <path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
                       </svg>
                     </button>
-                </div>
               </div>
               </div>
+            </div>
             </div>
           </div>
 
@@ -245,10 +251,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed } from "vue";
 import { initializeApp, getApp, getApps } from "firebase/app";
 import { getAuth, signInWithCustomToken } from "firebase/auth";
-import { getDatabase, ref as databaseRef, push, remove, update } from "firebase/database";
+import { getDatabase, ref as databaseRef, get, push, remove, update } from "firebase/database";
 
 // ===============================
 // 🔥 Firebase Config
@@ -331,6 +337,21 @@ const form = ref<Partial<Task>>({
   time: "19:00",
 });
 
+// Computed property to sort tasks by date (newest first)
+const sortedTasks = computed(() => {
+  return [...tasks.value].sort((a, b) => {
+    // Tasks without dates go to the bottom
+    if (!a.date && !b.date) return 0;
+    if (!a.date) return 1;
+    if (!b.date) return -1;
+    
+    // Compare dates (newest first)
+    const dateA = new Date(a.date).getTime();
+    const dateB = new Date(b.date).getTime();
+    return dateB - dateA;
+  });
+});
+
 import axios from "axios";
 const backendBase = "http://localhost:8000";
 
@@ -341,7 +362,7 @@ async function loadTasks() {
   loading.value = true;
   pageError.value = "";
   try {
-    if (!accessToken.value) await fetchBackendToken();
+    if (!accessToken.value) await fetchBackendToken(); // ดึง token ก่อนถ้ายังไม่มี
 
     const res = await axios.get(`${backendBase}/api/task/my-tasks`, {
       headers: {
@@ -349,10 +370,7 @@ async function loadTasks() {
       },
     });
 
-    // ✅ ดึง tasks จาก key "results" ตาม response ที่เห็นใน Postman
-    const raw = res.data?.results;
-    tasks.value = Array.isArray(raw) ? raw : [];
-
+    tasks.value = res.data || [];
     console.log("✅ Tasks loaded:", tasks.value);
   } catch (e: any) {
     console.error("❌ Failed to load tasks:", e);
@@ -470,6 +488,19 @@ function formatTime(t?: string) {
   return t ? t.slice(0, 5) : "";
 }
 
+function formatDateShort(d?: string) {
+  if (!d) return "";
+  try {
+    const date = new Date(d);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = String(date.getFullYear()).slice(-2);
+    return `${day}-${month}-${year}`;
+  } catch {
+    return "";
+  }
+}
+
 function showTaskDetails(task: Task) {
   selectedTask.value = task;
 }
@@ -516,6 +547,59 @@ onMounted(async () => {
     console.error("❌ Initial load failed:", err);
     pageError.value = (err as any)?.message || "Load failed";
     loading.value = false;
+    
+    // Load mock data even if authentication fails
+    const today = new Date().toISOString().slice(0, 10);
+    const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    const nextWeek = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+    
+    tasks.value = [
+      {
+        id: "mock-1",
+        name: "Complete project proposal",
+        description: "Write and submit the quarterly project proposal for Q1 2024. Include budget estimates, timeline, and resource allocation.",
+        time_specified: true,
+        date: today,
+        time: "14:00:00",
+        done: false
+      },
+      {
+        id: "mock-2",
+        name: "Team meeting with stakeholders",
+        description: "Discuss project milestones and gather feedback from key stakeholders. Prepare presentation slides.",
+        time_specified: true,
+        date: today,
+        time: "16:30:00",
+        done: false
+      },
+      {
+        id: "mock-3",
+        name: "Review code changes",
+        description: "Review pull requests from team members and provide constructive feedback on implementation.",
+        time_specified: true,
+        date: tomorrow,
+        time: "10:00:00",
+        done: false
+      },
+      {
+        id: "mock-4",
+        name: "Update documentation",
+        description: "Update API documentation to reflect recent changes in the authentication flow and new endpoints.",
+        time_specified: true,
+        date: tomorrow,
+        time: "15:00:00",
+        done: true
+      },
+      {
+        id: "mock-5",
+        name: "Client presentation",
+        description: "Present the new features and improvements to the client. Prepare demo environment and backup slides.",
+        time_specified: true,
+        date: nextWeek,
+        time: "11:00:00",
+        done: false
+      }
+    ];
   }
 });
 </script>
@@ -815,51 +899,6 @@ onMounted(async () => {
   background: #F9FAFB;
 }
 
-.task-checkbox {
-  position: relative;
-  margin-top: 4px;
-}
-
-.task-checkbox input[type="checkbox"] {
-  opacity: 0;
-  position: absolute;
-}
-
-.checkbox-label {
-  display: block;
-  width: 24px;
-  height: 24px;
-  border: 2px solid var(--sage);
-  border-radius: 6px;
-  background: var(--white);
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-}
-
-.checkbox-label::after {
-  content: '';
-  position: absolute;
-  left: 6px;
-  top: 2px;
-  width: 6px;
-  height: 12px;
-  border: solid var(--white);
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
-  opacity: 0;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.task-checkbox input[type="checkbox"]:checked + .checkbox-label {
-  background: var(--sage);
-  border-color: var(--sage);
-}
-
-.task-checkbox input[type="checkbox"]:checked + .checkbox-label::after {
-  opacity: 1;
-}
-
 .task-content {
   flex: 1;
   min-width: 0;
@@ -878,11 +917,109 @@ onMounted(async () => {
   color: #0f0f0f;
   margin: 0;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  flex: 1;
 }
 
-.task-name.done {
+.task-name-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.task-name.done .task-text {
   text-decoration: line-through;
   color: var(--muted);
+}
+
+.task-checkbox-inline {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.task-checkbox-inline input[type="checkbox"] {
+  opacity: 0;
+  position: absolute;
+  z-index: 1;
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+}
+
+.checkbox-label-inline {
+  display: block;
+  width: 20px;
+  height: 20px;
+  /* border: 2px solid #FF6B9D; */
+  border-radius: 6px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  flex-shrink: 0;
+  box-shadow: 0 2px 4px rgba(255, 107, 157, 0.1);
+}
+
+.checkbox-label-inline:hover {
+  /* border-color: #FF4D88; */
+  box-shadow: 0 4px 8px rgba(255, 107, 157, 0.2);
+  transform: translateY(-1px);
+}
+
+.checkbox-label-inline::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 1px;
+  width: 5px;
+  height: 10px;
+  border: solid var(--white);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+  opacity: 0;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.task-checkbox-inline input[type="checkbox"]:checked + .checkbox-label-inline {
+  background: rgba(151, 93, 38, 0.789);
+  /* box-shadow: 0 4px 12px rgba(255, 107, 157, 0.4); */
+}
+
+.task-checkbox-inline input[type="checkbox"]:checked + .checkbox-label-inline::after {
+  opacity: 1;
+}
+
+.task-date {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  background: linear-gradient(135deg, var(--sage) 0%, var(--sageLight) 100%);
+  color: var(--white);
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+.task-time {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  background: linear-gradient(135deg, var(--sand) 0%, #E6B085 100%);
+  color: var(--white);
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+.task-text {
+  flex: 1;
 }
 
 .task-actions {

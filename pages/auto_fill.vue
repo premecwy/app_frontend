@@ -20,79 +20,36 @@
         <!-- Enhanced Main Section -->
         <section class="main-section card">
           <div class="section-header">
-            <h2 class="section-title">Form Analysis</h2>
-            <p class="section-subtitle">Upload a file or paste text to analyze and extract form data</p>
+            <h2 class="section-title">Select Form Type</h2>
+            <p class="section-subtitle">Choose the type of form you want to fill</p>
           </div>
 
-          <!-- Enhanced Input Section -->
-          <div class="input-section">
-            <div class="form-group">
-              <label class="form-label">Text Input</label>
-        <textarea
-          v-model="text"
-                class="form-textarea"
-          rows="6"
-                placeholder="Paste text to analyze (e.g., history/form data)..."
-        ></textarea>
-      </div>
-  
-            <!-- <div class="form-group">
-              <label class="form-label">Or Upload File</label>
-              <div class="file-input-wrapper">
-                <input 
-                  type="file" 
-                  accept=".txt,.pdf,.doc,.docx" 
-                  @change="onFile" 
-                  class="file-input"
-                  id="file-upload"
-                />
-                <label for="file-upload" class="file-label">
-                  <svg viewBox="0 0 24 24" width="20" height="20">
-                    <path fill="currentColor" d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
-                  </svg>
-                  Choose File
-                </label>
-                <span v-if="file" class="file-name">{{ file.name }}</span>
+          <!-- Form Type Selection Buttons -->
+          <div class="form-type-buttons">
+            <button class="form-type-btn" @click="$router.push('/fillform/idcard')">
+              <div class="form-type-icon">
+                <svg viewBox="0 0 24 24" width="48" height="48">
+                  <path fill="currentColor" d="M22,3H2C0.91,3.04 0.04,3.91 0,5V19C0.04,20.09 0.91,20.96 2,21H22C23.09,20.96 23.96,20.09 24,19V5C23.96,3.91 23.09,3.04 22,3M22,19H2V5H22V19M14,17V15.75C14,14.09 10.66,13.25 9,13.25C7.34,13.25 4,14.09 4,15.75V17H14M9,7A2.5,2.5 0 0,0 6.5,9.5A2.5,2.5 0 0,0 9,12A2.5,2.5 0 0,0 11.5,9.5A2.5,2.5 0 0,0 9,7M14,7V8H20V7H14M14,9V10H20V9H14M14,11V12H18V11H14"/>
+                </svg>
               </div>
-            </div> -->
-          </div>
+              <div class="form-type-content">
+                <h3 class="form-type-title">ID Card</h3>
+                <p class="form-type-description">Upload and extract information from ID cards</p>
+              </div>
+            </button>
 
-          <!-- Enhanced Action Buttons -->
-          <div class="action-buttons">
-            <!-- <button 
-              class="btn-primary" 
-              @click="analyze" 
-              :disabled="loading"
-            >
-              <span v-if="loading" class="loading-spinner"></span>
-              {{ loading ? 'Analyzing...' : 'Analyze' }}
-            </button> -->
-            
-            <button 
-              class="btn-secondary" 
-              @click="submit" 
-              :disabled="submitting"
-            >
-              <span v-if="submitting" class="loading-spinner"></span>
-              {{ submitting ? 'Submitting...' : 'Submit' }}
-        </button>
-            
-            <!-- <button 
-              class="btn-copy" 
-              @click="copyJSON" 
-              :disabled="!result"
-            >
-              Copy JSON
-        </button> -->
-            
-            <button 
-              class="btn-clear" 
-              @click="clearAll" 
-              :disabled="loading || submitting"
-            >
-              Clear All
-        </button>
-      </div>
+            <button class="form-type-btn" @click="$router.push('/fillform/accident')">
+              <div class="form-type-icon">
+                <svg viewBox="0 0 24 24" width="48" height="48">
+                  <path fill="currentColor" d="M18.92,6.01C18.72,5.42 18.16,5 17.5,5H6.5C5.84,5 5.29,5.42 5.08,6.01L3,12V20C3,20.55 3.45,21 4,21H5C5.55,21 6,20.55 6,20V19H18V20C18,20.55 18.45,21 19,21H20C20.55,21 21,20.55 21,20V12L18.92,6.01M6.5,16C5.67,16 5,15.33 5,14.5C5,13.67 5.67,13 6.5,13C7.33,13 8,13.67 8,14.5C8,15.33 7.33,16 6.5,16M17.5,16C16.67,16 16,15.33 16,14.5C16,13.67 16.67,13 17.5,13C18.33,13 19,13.67 19,14.5C19,15.33 18.33,16 17.5,16M5,11L6.5,6.5H17.5L19,11H5M7,8H11V10H7V8M13,8H17V10H13V8Z"/>
+                </svg>
+              </div>
+              <div class="form-type-content">
+                <h3 class="form-type-title">Car Accident Form</h3>
+                <p class="form-type-description">Upload and process car accident documentation</p>
+              </div>
+            </button>
+          </div>
   
           <!-- Enhanced Status Messages -->
           <div v-if="error" class="error-message">
@@ -507,6 +464,84 @@
   font-size: 16px;
   color: var(--muted);
   margin: 0;
+}
+
+.result-layout-box {
+  border: 2px solid #E5E7EB;
+  border-radius: 12px;
+  padding: 20px;
+  margin: 20px auto;
+  background: #f8fafc;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  max-width: 400px;
+}
+
+.result-layout-item {
+  padding: 8px 0;
+  font-size: 16px;
+  color: var(--textDark);
+}
+
+/* Form Type Selection Buttons */
+.form-type-buttons {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 24px;
+  margin: 32px 0;
+}
+
+.form-type-btn {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 24px;
+  background: white;
+  border: 2px solid #E5E7EB;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  text-align: left;
+}
+
+.form-type-btn:hover {
+  border-color: var(--sage);
+  background: #f8faf9;
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(105, 132, 116, 0.15);
+}
+
+.form-type-btn:active {
+  transform: translateY(-2px);
+}
+
+.form-type-icon {
+  flex-shrink: 0;
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--sage) 0%, var(--sageLight) 100%);
+  border-radius: 12px;
+  color: white;
+}
+
+.form-type-content {
+  flex: 1;
+}
+
+.form-type-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--textDark);
+  margin: 0 0 8px 0;
+}
+
+.form-type-description {
+  font-size: 14px;
+  color: var(--muted);
+  margin: 0;
+  line-height: 1.5;
 }
 
 /* Input Section */

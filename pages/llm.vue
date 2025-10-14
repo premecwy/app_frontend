@@ -24,10 +24,11 @@
 
 		<main class="page">
 			<div class="container">
-				<div class="dog-container">
-					<div v-if="!showTextArea" class="big-dog" :class="{ shake: isShaking }" @click="handleDogClick">🐶</div>
+			<div class="dog-container">
+				<div v-if="!showTextArea" class="big-dog" :class="{ shake: isShaking }" @click="handleDogClick">🐶</div>
+				<div v-if="!showTextArea && lastUserMessage" class="user-speech-text">{{ lastUserMessage }}</div>
 
-					<div v-if="showTextArea" class="chat-wrapper">
+				<div v-if="showTextArea" class="chat-wrapper">
 						<!-- Chat History -->
 						<div class="chat-history" ref="chatHistory">
 							<div v-if="messages.length === 0" class="empty-chat">
@@ -52,18 +53,18 @@
 							</div>
 						</div>
 
-						<!-- ✅ ปุ่มยืนยันเพิ่มซ้ำ -->
-						<div v-if="pendingDuplicate" class="duplicate-confirm" style="text-align:center; margin:10px 0;">
-							<p style="margin-bottom:10px; color:#333;">พบรายการซ้ำ ต้องการเพิ่มงานนี้อีกครั้งหรือไม่?</p>
-							<button @click="confirmDuplicate"
-								style="background:#4CAF50; color:white; border:none; padding:10px 20px; border-radius:8px; margin-right:10px; cursor:pointer;">
+					<!-- ✅ ปุ่มยืนยันเพิ่มซ้ำ -->
+					<div v-if="pendingDuplicate" class="duplicate-confirm">
+						<p class="duplicate-message">พบรายการซ้ำ ต้องการเพิ่มงานนี้อีกครั้งหรือไม่?</p>
+						<div class="duplicate-buttons">
+							<button @click="confirmDuplicate" class="btn-confirm">
 								✅ ยืนยันเพิ่มซ้ำ
 							</button>
-							<button @click="cancelDuplicate"
-								style="background:#f44336; color:white; border:none; padding:10px 20px; border-radius:8px; cursor:pointer;">
+							<button @click="cancelDuplicate" class="btn-cancel">
 								❌ ยกเลิก
 							</button>
 						</div>
+					</div>
 
 						<!-- Text Area -->
 						<div class="text-area-container">
@@ -104,12 +105,13 @@ export default {
 			messages: [],
 			isShaking: false,
 			showTextArea: false,
-			messageText: '',
-			mediaRecorder: null,
-			isRecording: false,
-			pendingDuplicate: null, // 🆕 สำหรับเก็บ payload งานซ้ำ
-		}
-	},
+		messageText: '',
+		mediaRecorder: null,
+		isRecording: false,
+		pendingDuplicate: null, // 🆕 สำหรับเก็บ payload งานซ้ำ
+		lastUserMessage: '', // 🆕 เก็บข้อความล่าสุดของผู้ใช้
+	}
+},
 
 	computed: {
 		canSend() {
@@ -118,9 +120,9 @@ export default {
 	},
 
 	methods: {
-		async handleDogClick() {
-			this.isShaking = true;
-			setTimeout(() => (this.isShaking = false), 1000);
+	async handleDogClick() {
+		this.isShaking = true;
+		setTimeout(() => (this.isShaking = false), 2000);
 
 			if (this.isRecording) {
 				if (this.mediaRecorder && this.mediaRecorder.state === "recording") {
@@ -147,13 +149,14 @@ export default {
 					const sttData = await sttRes.json();
 					const recognizedText = sttData.text;
 
-					if (recognizedText) {
-						this.messages.push({ role: 'user', content: recognizedText });
-						this.$nextTick(() => this.scrollToBottom());
-						const chatReply = await this.callApi(recognizedText);
-						this.messages.push({ role: 'assistant', content: chatReply });
-						this.$nextTick(() => this.scrollToBottom());
-					}
+				if (recognizedText) {
+					this.messages.push({ role: 'user', content: recognizedText });
+					this.lastUserMessage = recognizedText; // 🆕 เก็บข้อความจากเสียง
+					this.$nextTick(() => this.scrollToBottom());
+					const chatReply = await this.callApi(recognizedText);
+					this.messages.push({ role: 'assistant', content: chatReply });
+					this.$nextTick(() => this.scrollToBottom());
+				}
 				};
 				this.mediaRecorder.start();
 				this.isRecording = true;
@@ -183,6 +186,7 @@ export default {
 
     // 💬 แสดงข้อความผู้ใช้บนจอ
     this.messages.push({ role: 'user', content: q });
+    this.lastUserMessage = q; // 🆕 เก็บข้อความล่าสุด
     this.messageText = '';
     this.loading = true;
     this.$nextTick(() => this.scrollToBottom());
@@ -863,31 +867,89 @@ export default {
   transform: scale(0.95);
 }
 
+.user-speech-text {
+  margin-top: 24px;
+  padding: 16px 24px;
+  background: white;
+  border: 2px solid var(--sage);
+  border-radius: 16px;
+  color: var(--textDark);
+  font-size: 18px;
+  font-weight: 500;
+  max-width: 600px;
+  text-align: center;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  animation: fadeInUp 0.5s ease-out;
+}
+
 /* Shake Animation */
 .big-dog.shake {
-  animation: shake 0.6s cubic-bezier(0.36, 0.07, 0.19, 0.97) both, vibrate 0.6s ease-in-out;
+  animation: shake 2s cubic-bezier(0.25, 0.46, 0.45, 0.94) both, vibrate 2s ease-in-out;
 }
 
 @keyframes shake {
-
-  0%,
-  100% {
+  0% {
     transform: translateX(0) rotate(0deg) scale(1);
   }
-
-  10%,
-  30%,
-  50%,
-  70%,
-  90% {
-    transform: translateX(-15px) rotate(-5deg) scale(1.1);
+  5% {
+    transform: translateX(-10px) rotate(-3deg) scale(1.05);
   }
-
-  20%,
-  40%,
-  60%,
+  10% {
+    transform: translateX(10px) rotate(3deg) scale(1.08);
+  }
+  15% {
+    transform: translateX(-12px) rotate(-4deg) scale(1.1);
+  }
+  20% {
+    transform: translateX(12px) rotate(4deg) scale(1.1);
+  }
+  25% {
+    transform: translateX(-10px) rotate(-3deg) scale(1.08);
+  }
+  30% {
+    transform: translateX(10px) rotate(3deg) scale(1.05);
+  }
+  35% {
+    transform: translateX(-8px) rotate(-2deg) scale(1.03);
+  }
+  40% {
+    transform: translateX(8px) rotate(2deg) scale(1.02);
+  }
+  45% {
+    transform: translateX(-6px) rotate(-1deg) scale(1.01);
+  }
+  50% {
+    transform: translateX(6px) rotate(1deg) scale(1);
+  }
+  55% {
+    transform: translateX(-4px) rotate(-0.5deg) scale(1);
+  }
+  60% {
+    transform: translateX(4px) rotate(0.5deg) scale(1);
+  }
+  65% {
+    transform: translateX(-2px) rotate(-0.3deg) scale(1);
+  }
+  70% {
+    transform: translateX(2px) rotate(0.3deg) scale(1);
+  }
+  75% {
+    transform: translateX(-1px) rotate(-0.2deg) scale(1);
+  }
   80% {
-    transform: translateX(15px) rotate(5deg) scale(1.1);
+    transform: translateX(1px) rotate(0.2deg) scale(1);
+  }
+  85% {
+    transform: translateX(-0.5px) rotate(-0.1deg) scale(1);
+  }
+  90% {
+    transform: translateX(0.5px) rotate(0.1deg) scale(1);
+  }
+  95% {
+    transform: translateX(-0.2px) rotate(0deg) scale(1);
+  }
+  100% {
+    transform: translateX(0) rotate(0deg) scale(1);
   }
 }
 
@@ -958,6 +1020,34 @@ export default {
 
   50% {
     transform: translateY(-15px);
+  }
+}
+
+@keyframes fadeInUp {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive styling for user speech text */
+@media (max-width: 768px) {
+  .user-speech-text {
+    font-size: 16px;
+    padding: 14px 20px;
+    max-width: 90%;
+  }
+}
+
+@media (max-width: 480px) {
+  .user-speech-text {
+    font-size: 14px;
+    padding: 12px 16px;
+    max-width: 95%;
   }
 }
 
@@ -1065,6 +1155,69 @@ export default {
 
 .message-input::placeholder {
   color: var(--muted);
+}
+
+/* Duplicate Confirm Buttons */
+.duplicate-confirm {
+  text-align: center;
+  margin: 16px 0;
+  padding: 16px;
+  background: #FFF9E6;
+  border: 2px solid #FFE082;
+  border-radius: 12px;
+}
+
+.duplicate-message {
+  margin: 0 0 16px 0;
+  color: #333;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.duplicate-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  align-items: center;
+}
+
+.btn-confirm,
+.btn-cancel {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.btn-confirm {
+  background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+  color: white;
+}
+
+.btn-confirm:hover {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+
+.btn-cancel {
+  background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+  color: white;
+}
+
+.btn-cancel:hover {
+  background: linear-gradient(135deg, #DC2626 0%, #B91C1C 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+}
+
+.btn-confirm:active,
+.btn-cancel:active {
+  transform: translateY(0);
 }
 
 .text-area-actions {

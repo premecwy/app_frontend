@@ -35,7 +35,7 @@
               </h1>
               <p class="hero-subtitle">Your intelligent assistant is ready to help</p>
             </div>
-            <div class="hero-dog" aria-hidden="true">🐶</div>
+            <img src="../src/assets/pic.png" alt="Assistant" class="hero-dog" />
           </div>
         </RouterLink>
 
@@ -301,11 +301,12 @@ main.page .container {
 }
 
 .hero-dog {
-  font-size: clamp(80px, 8vw, 140px);
+  width: clamp(150px, 25vw, 280px);
+  height: auto;
+  object-fit: contain;
   filter: drop-shadow(0 4px 8px rgba(0,0,0,0.1));
-  animation: float 3s ease-in-out infinite;
   flex-shrink: 0;
-  line-height: 1;
+  border-radius: 16px;
 }
 
 @keyframes float {
@@ -482,7 +483,7 @@ main.page .container {
   
   .hero-dog {
     order: -1;
-    font-size: clamp(60px, 12vw, 80px);
+    width: clamp(120px, 35vw, 200px);
   }
   
   .action-content {
@@ -533,7 +534,6 @@ main.page .container {
 
 /* Accessibility improvements */
 @media (prefers-reduced-motion: reduce) {
-  .hero-dog,
   .dot.pink,
   .dot.yellow {
     animation: none;

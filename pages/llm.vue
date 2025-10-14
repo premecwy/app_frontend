@@ -25,7 +25,9 @@
 		<main class="page">
 			<div class="container">
 			<div class="dog-container">
-				<div v-if="!showTextArea" class="big-dog" :class="{ shake: isShaking }" @click="handleDogClick">🐶</div>
+				<div v-if="!showTextArea" class="big-dog" :class="{ shake: isShaking }" @click="handleDogClick">
+					<img src="../src/assets/pic.png" alt="Assistant" class="dog-image" />
+				</div>
 				<div v-if="!showTextArea && lastUserMessage" class="user-speech-text">{{ lastUserMessage }}</div>
 
 				<div v-if="showTextArea" class="chat-wrapper">
@@ -857,13 +859,25 @@ export default {
   transition: transform 0.3s ease;
   animation: float 3s ease-in-out infinite;
   margin-top: 100px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
-.big-dog:hover {
+.dog-image {
+  width: clamp(220px, 35vw, 350px);
+  height: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.1));
+  border-radius: 16px;
+  transition: transform 0.3s ease;
+}
+
+.big-dog:hover .dog-image {
   transform: scale(1.1);
 }
 
-.big-dog:active {
+.big-dog:active .dog-image {
   transform: scale(0.95);
 }
 

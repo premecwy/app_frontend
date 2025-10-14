@@ -88,11 +88,14 @@
 </template>
 
 <script>
+import axios from 'axios'
 export default {
+  
 	name: 'LlmPage',
 	data() {
 		return {
-			url: localStorage.getItem('chat_url') || 'http://127.0.0.1:8000/chat',
+			url: 'https://lumaai-backend-672244117841.asia-southeast1.run.app/api/llm/',
+      token: localStorage.getItem('chat_token') || 'eyJhbGciOiJIUzUxMiJ9.eyJlbWFpbCI6IjY1MTYwMjcxQGdvLmJ1dS5hYy50aCIsInN1YiI6IktYZVpwYUVPVVZWYVd2RVM2YXduMkN4Uk5iTjIiLCJpYXQiOjE3NjA0MTYzODgsImV4cCI6MTc2MDQxNjY4OH0.-oItgUGIT2lmlcA4ICvCUhaPQZx4Bh-j72TbVW_OLQkYw6BD14eERJ62s-N7bPeiBoPyQGdvgrNRyZXL0Pjpag', // 🆕 ช่องใส่ token
 			payloadKey: localStorage.getItem('chat_key') || 'text',
 			timeoutMs: Number(localStorage.getItem('chat_timeout') || 1000000),
 			showSettings: false,
@@ -158,24 +161,195 @@ export default {
 				alert("Cannot access microphone.");
 			}
 		},
+        // 🟢 เมื่อผู้ใช้กด "ยืนยันเพิ่มซ้ำ"
+    async confirmDuplicate() {
+      if (!this.pendingDuplicate) return;
+      const msg = `ยืนยันเพิ่มงาน "${this.pendingDuplicate}"`;
+      this.pendingDuplicate = null;
+      await this.sendMessage(msg);
+    },
 
-		async sendMessage() {
-			const q = this.messageText.trim();
-			if (!q) return;
-			this.messages.push({ role: 'user', content: q });
-			this.messageText = '';
-			this.loading = true;
-			this.$nextTick(() => this.scrollToBottom());
-			try {
-				const reply = await this.callApi(q);
-				this.messages.push({ role: 'assistant', content: reply });
-			} catch (e) {
-				this.messages.push({ role: 'assistant', content: '❌ ' + e.message });
-			} finally {
-				this.loading = false;
-				this.$nextTick(() => this.scrollToBottom());
-			}
-		},
+    // 🔴 เมื่อผู้ใช้กด "ยกเลิกเพิ่มซ้ำ"
+    cancelDuplicate() {
+      this.messages.push({
+        role: "assistant",
+        content: "❌ ยกเลิกการเพิ่มงานซ้ำแล้วครับ",
+      });
+      this.pendingDuplicate = null;
+    },
+  async sendMessage() {
+    const q = this.messageText.trim();
+    if (!q) return;
+
+    // 💬 แสดงข้อความผู้ใช้บนจอ
+    this.messages.push({ role: 'user', content: q });
+    this.messageText = '';
+    this.loading = true;
+    this.$nextTick(() => this.scrollToBottom());
+
+    try {
+        // ✅ สร้าง payload และแนบ token
+        const payload = { [this.payloadKey]: q };
+        const headers = {};
+        if (this.token) headers['Authorization'] = `Bearer ${this.token}`;
+
+        // 🧠 ตรวจ keyword ก่อนยิง API
+        
+        const hasKeyword = q.includes("กรอก") || q.includes("เติม");
+        const targetUrl = hasKeyword
+          ? "http://localhost:8000/chat"
+          : this.url;
+
+        // ✅ ยิงตรงไป Cloud Run
+        const res = await axios.post(this.url, payload, {
+            timeout: this.timeoutMs,
+            headers,
+        });
+
+        const response = res.data;
+        console.log('✅ Response:', response);
+
+        // === Android Logic Start ===
+        if (!response?.errors || response.errors.length === 0) {
+            let curInd = 0;
+
+            for (const it of response?.results || []) {
+                const isLast = curInd === response.results.length - 1;
+                const nextInd = !isLast ? curInd + 1 : curInd;
+                const nextIntent = response.results[nextInd]?.intent || '';
+
+                // ✅ 1. intent == CHECK และตัวถัดไปไม่ใช่ ADD/EDIT/DELETE
+                if (
+                    it.intent === 'CHECK' &&
+                    !['ADD', 'EDIT', 'DELETE'].includes(nextIntent)
+                ) {
+                    this.messages.push({
+                        role: 'assistant',
+                        content: 'นี่คืองานที่ฉันพบ',
+                    });
+
+                    for (const taskData of it.output || []) {
+                        if (taskData.id === '-1') continue;
+                        this.messages.push({
+                            role: 'task-view',
+                            task: taskData,
+                        });
+                    }
+                }
+
+                // ✅ 2. intent == ADD / EDIT / DELETE
+                if (['ADD', 'EDIT', 'DELETE'].includes(it.intent)) {
+                    const msgMap = {
+                        ADD: 'เพิ่มงานให้คุณแล้วครับ :D',
+                        EDIT: 'แก้ไขงานให้คุณแล้วครับ :D',
+                        DELETE: 'ลบงานให้คุณแล้วครับ :D',
+                    };
+                    this.messages.push({
+                        role: 'assistant',
+                        content: msgMap[it.intent],
+                    });
+                }
+
+                // ✅ 3. intent == SEARCH
+                if (it.intent === 'SEARCH') {
+                    this.messages.push({
+                        role: 'assistant',
+                        content: response.result || '',
+                    });
+                }
+
+                // ✅ 4. intent == GOOGLESEARCH
+                if (it.intent === 'GOOGLESEARCH') {
+                    this.messages.push({
+                        role: 'assistant',
+                        content: it.message || '',
+                    });
+                }
+
+                // ✅ 5. intent == GENFORM
+                if (it.intent === 'GENFORM') {
+                    const url = it.message;
+                    const fileName = url?.split('/').pop() || 'unknown.pdf';
+                    this.messages.push({
+                        role: 'assistant',
+                        content: `📄 สร้างแบบฟอร์ม: ${fileName}`,
+                        url,
+                    });
+                }
+
+                // ✅ 6. intent == EXIT
+                if (it.intent === 'EXIT') {
+                    this.messages.push({
+                        role: 'assistant',
+                        content: it.message || 'จบการสนทนาแล้วครับ',
+                    });
+                }
+
+                curInd++;
+            }
+        }
+
+        // === กรณีมี errors ===
+        else {
+            for (const err of response.errors) {
+                this.messages.push({
+                    role: 'assistant',
+                    content: err.message || '⚠️ มีบางอย่างผิดพลาด',
+                });
+
+                // ✅ ADD / EDIT / REMOVE จาก error output
+                if (Array.isArray(err.output) && err.output.length > 0) {
+                    const intent = err.intent?.toUpperCase();
+                    const outputs = err.output;
+
+                    if (intent === 'ADD') {
+                        const size = outputs.length;
+                        for (let i = 1; i < size; i++) {
+                            this.messages.push({
+                                role: 'task-view',
+                                task: outputs[i],
+                            });
+                        }
+                        this.messages.push({
+                            role: 'task-add',
+                            task: outputs[size - 1],
+                        });
+                    }
+
+                    if (intent === 'EDIT') {
+                        const size = outputs.length;
+                        for (let i = 1; i < size; i++) {
+                            this.messages.push({
+                                role: 'task-edit',
+                                task: outputs[i],
+                            });
+                        }
+                    }
+
+                    if (['REMOVE', 'DELETE'].includes(intent)) {
+                        for (const taskData of outputs) {
+                            this.messages.push({
+                                role: 'task-delete',
+                                task: taskData,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+        // === Android Logic End ===
+
+    } catch (e) {
+        console.error('❌ Send error:', e);
+        this.messages.push({
+            role: 'assistant',
+            content: 'ขออภัยครับ มีบางอย่างผิดพลาด ลองใหม่อีกครั้ง',
+        });
+    } finally {
+        this.loading = false;
+        this.$nextTick(() => this.scrollToBottom());
+    }
+  },
 
 		scrollToBottom() {
 			const chatHistory = this.$refs.chatHistory;
@@ -184,47 +358,19 @@ export default {
 
 		async callApi(q) {
 			this.persist();
-
-			// ⏱️ เพิ่ม timeout เป็น 60 วินาที
-			this.timeoutMs = Math.max(this.timeoutMs, 60000);
 			const t = this.controllerWithTimeout(this.timeoutMs);
-
 			try {
-				console.log("🌐 Sending to backend:", this.url, "payload:", q);
-
 				const res = await fetch(this.url, {
 					method: "POST",
-					headers: {
-						"Accept": "application/json, text/plain, */*",
-						"Content-Type": "application/json",
-					},
-					body: JSON.stringify({ [this.payloadKey || "text"]: q }),
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ [this.payloadKey]: q }),
 					mode: "cors",
 					signal: t.ctrl.signal,
 				});
-
 				t.cancel();
+				const data = await res.json();
 
-				if (!res.ok) {
-					const text = await res.text();
-					throw new Error(`HTTP ${res.status} ${res.statusText}\n\n${text}`);
-				}
-
-				const ct = res.headers.get("content-type") || "";
-				let data;
-				if (ct.includes("application/json")) {
-					data = await res.json();
-				} else {
-					try {
-						data = JSON.parse(await res.text());
-					} catch {
-						data = { result: await res.text() };
-					}
-				}
-
-				console.log("✅ Cloud Run responded:", data);
-
-				// ✅ ตรวจจับเคส duplicate จาก backend จริง
+				// ✅ ตรวจจับกรณีซ้ำ
 				if (data.errors && Array.isArray(data.errors)) {
 					const duplicate = data.errors.find(e => e.intent === "ADD");
 					if (duplicate) {
@@ -235,22 +381,12 @@ export default {
 						return msg;
 					}
 				}
-
-				// ปกติ
 				return this.pickAnswer(data);
 
 			} catch (e) {
-				console.error("❌ Error calling backend:", e);
-				const hints = [
-					"ตรวจสอบว่า Cloud Run ยังออนไลน์อยู่หรือไม่",
-					"ลองเพิ่ม read timeout ใน backend (เช่น 60s ขึ้นไป)",
-					"ตรวจสอบว่า response มี JSON หรือไม่ (errors.intent = ADD)",
-				];
-				throw new Error(`${e.message || e}\n\nHints:\n- ${hints.join("\n- ")}`);
+				throw new Error(e.message || String(e));
 			}
 		},
-
-
 
 		async confirmDuplicate() {
 			if (!this.pendingDuplicate) return;
@@ -304,6 +440,7 @@ export default {
 	},
 }
 </script>
+
 <style scoped>
 /* Enhanced Color Palette */
 :root {

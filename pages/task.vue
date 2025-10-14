@@ -352,8 +352,9 @@ const sortedTasks = computed(() => {
   });
 });
 
+// Removed duplicate fetchBackendToken function
 import axios from "axios";
-const backendBase = "http://localhost:8000";
+const backendBase = "https://lumaai-backend-672244117841.asia-southeast1.run.app/api" ;
 
 const accessToken = ref<string | null>(null);
 
@@ -362,15 +363,18 @@ async function loadTasks() {
   loading.value = true;
   pageError.value = "";
   try {
-    if (!accessToken.value) await fetchBackendToken(); // ดึง token ก่อนถ้ายังไม่มี
+    if (!accessToken.value) await fetchBackendToken();
 
-    const res = await axios.get(`${backendBase}/api/task/my-tasks`, {
+    const res = await axios.get(`${backendBase}/task/my-tasks`, {
       headers: {
         Authorization: `Bearer ${accessToken.value}`,
       },
     });
 
-    tasks.value = res.data || [];
+    // ✅ ดึง tasks จาก key "results" ตาม response ที่เห็นใน Postman
+    const raw = res.data?.results;
+    tasks.value = Array.isArray(raw) ? raw : [];
+
     console.log("✅ Tasks loaded:", tasks.value);
   } catch (e: any) {
     console.error("❌ Failed to load tasks:", e);
@@ -379,6 +383,7 @@ async function loadTasks() {
     loading.value = false;
   }
 }
+
 
 async function addQuick() {
   if (!quickName.value.trim() || !uid.value) return;
@@ -476,14 +481,19 @@ function formatDate(d?: string) {
 
 async function fetchBackendToken() {
   try {
-    const res = await axios.get(`${backendBase}/api/auth/token`);
-    accessToken.value = res.data.access_token;
-    console.log("✅ Access token loaded from backend:", accessToken.value?.slice(0, 20) + "...");
+    const res = await axios.get(`http://127.0.0.1:8000/api/auth/token`);
+    const token = res.data?.access_token;
+
+    if (!token) throw new Error("No access_token found in backend response");
+
+    accessToken.value = token;
+    console.log("✅ Access token loaded:", token.slice(0, 20) + "...");
   } catch (e: any) {
     console.error("❌ Failed to fetch access token from backend:", e);
     throw new Error("Cannot fetch token from backend");
   }
 }
+
 function formatTime(t?: string) {
   return t ? t.slice(0, 5) : "";
 }

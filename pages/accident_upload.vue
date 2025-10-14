@@ -171,7 +171,7 @@
               <div class="file-input-wrapper">
                 <input 
                   type="file" 
-                  accept="image/*,.pdf,.doc,.docx,.txt" 
+                  accept="image/*,.json" 
                   @change="onFile" 
                   class="file-input"
                   id="file-upload"
@@ -250,46 +250,56 @@ async function submit() {
   info.value = "";
 
   try {
-    // TODO: Replace with your actual API endpoint
-    // const formData = new FormData();
-    // formData.append("file", file.value);
-    // const response = await fetch("/api/accident/extract", {
-    //   method: "POST",
-    //   body: formData,
-    // });
-    // result.value = await response.json();
+    // Check if file is JSON
+    if (file.value.name.toLowerCase().endsWith('.json')) {
+      // Read and parse JSON file
+      const text = await file.value.text();
+      const jsonData = JSON.parse(text);
+      result.value = jsonData;
+      info.value = "JSON file loaded successfully!";
+    } else {
+      // For other file types, use API or mock data
+      // TODO: Replace with your actual API endpoint
+      // const formData = new FormData();
+      // formData.append("file", file.value);
+      // const response = await fetch("/api/accident/extract", {
+      //   method: "POST",
+      //   body: formData,
+      // });
+      // result.value = await response.json();
 
-    // Mock result for demonstration
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    result.value = {
-      "manufacturer": "กิตตวรรณ",
-      "model_year": "2005",
-      "model": "Civic",
-      "vin": "1HGBH41JXMN109186",
-      "ccm": "1800",
-      "registration": "กข-1234",
-      "type": "Sedan",
-      "engine": "Petrol",
-      "power": "140 HP",
-      "weight": "1200 kg",
-      "driver_name": "สมชาย",
-      "driver_surname": "ใจดี",
-      "age": "35",
-      "sex": "Male",
-      "license_no": "12345678",
-      "street": "123 ถนนสุขุมวิท",
-      "subdistrict": "คลองเตย",
-      "district": "คลองเตย",
-      "province": "กรุงเทพมหานคร",
-      "zipcode": "10110",
-      "damaged_parts": "Front bumper, headlight",
-      "repair_needed": "Replace bumper and headlight assembly",
-      "insurance_company": "Safe Drive Insurance",
-      "policy_no": "POL-2025-001234"
-    };
-    info.value = "Car accident report processed successfully!";
+      // Mock result for demonstration
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      result.value = {
+        "manufacturer": "กิตตวรรณ",
+        "model_year": "2005",
+        "model": "Civic",
+        "vin": "1HGBH41JXMN109186",
+        "ccm": "1800",
+        "registration": "กข-1234",
+        "type": "Sedan",
+        "engine": "Petrol",
+        "power": "140 HP",
+        "weight": "1200 kg",
+        "driver_name": "สมชาย",
+        "driver_surname": "ใจดี",
+        "age": "35",
+        "sex": "Male",
+        "license_no": "12345678",
+        "street": "123 ถนนสุขุมวิท",
+        "subdistrict": "คลองเตย",
+        "district": "คลองเตย",
+        "province": "กรุงเทพมหานคร",
+        "zipcode": "10110",
+        "damaged_parts": "Front bumper, headlight",
+        "repair_needed": "Replace bumper and headlight assembly",
+        "insurance_company": "Safe Drive Insurance",
+        "policy_no": "POL-2025-001234"
+      };
+      info.value = "Car accident report processed successfully!";
+    }
   } catch (e) {
-    error.value = `Failed to process accident report: ${e.message}`;
+    error.value = `Failed to process file: ${e.message}`;
   } finally {
     submitting.value = false;
   }

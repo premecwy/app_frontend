@@ -44,23 +44,28 @@
             
             <div class="result-layout-item">
               <span class="field-label">ID Number:</span>
-              <input v-if="isEditing && result" v-model="result['ID Number']" class="field-input" />
-              <span v-else class="field-value">{{ result?.['ID Number'] || result?.id_number || '-' }}</span>
+              <input v-if="isEditing && result" v-model="result.id" class="field-input" />
+              <span v-else class="field-value">{{ result?.id || result?.['ID Number'] || result?.id_number || '-' }}</span>
             </div>
             <div class="result-layout-item">
               <span class="field-label">Name:</span>
-              <input v-if="isEditing && result" v-model="result.Name" class="field-input" />
-              <span v-else class="field-value">{{ result?.Name || result?.name || '-' }}</span>
+              <input v-if="isEditing && result" v-model="result.name" class="field-input" />
+              <span v-else class="field-value">{{ result?.name || result?.Name || '-' }}</span>
             </div>
             <div class="result-layout-item">
-              <span class="field-label">Date of Birth:</span>
-              <input v-if="isEditing && result" v-model="result['Date of Birth']" class="field-input" />
-              <span v-else class="field-value">{{ result?.['Date of Birth'] || result?.date_of_birth || '-' }}</span>
+              <span class="field-label">Surname:</span>
+              <input v-if="isEditing && result" v-model="result.surname" class="field-input" />
+              <span v-else class="field-value">{{ result?.surname || result?.Surname || '-' }}</span>
+            </div>
+            <div class="result-layout-item">
+              <span class="field-label">Age:</span>
+              <input v-if="isEditing && result" v-model="result.age" class="field-input" />
+              <span v-else class="field-value">{{ result?.age || result?.Age || '-' }}</span>
             </div>
             <div class="result-layout-item">
               <span class="field-label">Address:</span>
-              <input v-if="isEditing && result" v-model="result.Address" class="field-input" />
-              <span v-else class="field-value">{{ result?.Address || result?.address || '-' }}</span>
+              <input v-if="isEditing && result" v-model="result.address" class="field-input" />
+              <span v-else class="field-value">{{ result?.address || result?.Address || '-' }}</span>
             </div>
           </div>
 
@@ -71,7 +76,7 @@
               <div class="file-input-wrapper">
                 <input 
                   type="file" 
-                  accept="image/*,.pdf,.jpg,.jpeg,.png" 
+                  accept="image/*,.json" 
                   @change="onFile" 
                   class="file-input"
                   id="file-upload"
@@ -150,26 +155,37 @@ async function submit() {
   info.value = "";
 
   try {
-    // TODO: Replace with your actual API endpoint
-    // const formData = new FormData();
-    // formData.append("file", file.value);
-    // const response = await fetch("/api/idcard/extract", {
-    //   method: "POST",
-    //   body: formData,
-    // });
-    // result.value = await response.json();
+    // Check if file is JSON
+    if (file.value.name.toLowerCase().endsWith('.json')) {
+      // Read and parse JSON file
+      const text = await file.value.text();
+      const jsonData = JSON.parse(text);
+      result.value = jsonData;
+      info.value = "JSON file loaded successfully!";
+    } else {
+      // For other file types, use API or mock data
+      // TODO: Replace with your actual API endpoint
+      // const formData = new FormData();
+      // formData.append("file", file.value);
+      // const response = await fetch("/api/idcard/extract", {
+      //   method: "POST",
+      //   body: formData,
+      // });
+      // result.value = await response.json();
 
-    // Mock result for demonstration
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    result.value = {
-      "ID Number": "1234567890123",
-      "Name": "John Doe",
-      "Date of Birth": "01/01/1990",
-      "Address": "123 Main St, City, Country"
-    };
-    info.value = "ID card processed successfully!";
+      // Mock result for demonstration
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      result.value = {
+        "id": "1234567890123",
+        "name": "John",
+        "surname": "Doe",
+        "age": "35",
+        "address": "123 Main St, City, Country"
+      };
+      info.value = "ID card processed successfully!";
+    }
   } catch (e) {
-    error.value = `Failed to process ID card: ${e.message}`;
+    error.value = `Failed to process file: ${e.message}`;
   } finally {
     submitting.value = false;
   }
@@ -184,10 +200,11 @@ async function copyResults() {
   try {
     // Format the data as shown in the box
     const textToCopy = `
-ID Number: ${result.value?.['ID Number'] || result.value?.id_number || '-'}
-Name: ${result.value?.Name || result.value?.name || '-'}
-Date of Birth: ${result.value?.['Date of Birth'] || result.value?.date_of_birth || '-'}
-Address: ${result.value?.Address || result.value?.address || '-'}
+ID Number: ${result.value?.id || result.value?.['ID Number'] || result.value?.id_number || '-'}
+Name: ${result.value?.name || result.value?.Name || '-'}
+Surname: ${result.value?.surname || result.value?.Surname || '-'}
+Age: ${result.value?.age || result.value?.Age || '-'}
+Address: ${result.value?.address || result.value?.Address || '-'}
     `.trim();
     
     await navigator.clipboard.writeText(textToCopy);

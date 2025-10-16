@@ -98,7 +98,7 @@ export default {
 	data() {
 		return {
 			url: 'https://lumaai-backend-672244117841.asia-southeast1.run.app/api/llm/',
-      token: localStorage.getItem('chat_token') || 'eyJhbGciOiJIUzUxMiJ9.eyJlbWFpbCI6IjY1MTYwMjcxQGdvLmJ1dS5hYy50aCIsInN1YiI6IktYZVpwYUVPVVZWYVd2RVM2YXduMkN4Uk5iTjIiLCJpYXQiOjE3NjA0MTYzODgsImV4cCI6MTc2MDQxNjY4OH0.-oItgUGIT2lmlcA4ICvCUhaPQZx4Bh-j72TbVW_OLQkYw6BD14eERJ62s-N7bPeiBoPyQGdvgrNRyZXL0Pjpag', // 🆕 ช่องใส่ token
+      token: localStorage.getItem('chat_token') || 'eyJhbGciOiJIUzUxMiJ9.eyJlbWFpbCI6IjY1MTYwMjcxQGdvLmJ1dS5hYy50aCIsInN1YiI6IktYZVpwYUVPVVZWYVd2RVM2YXduMkN4Uk5iTjIiLCJpYXQiOjE3NjA2MDE4NTIsImV4cCI6MTc2MDYwMjAzMn0.swX8u5AgSfhLi_yYJro0HRxgLQRp1MJfqtiUzpiMsM7rVg-ZMhPgKxAbjRswd6ceJ4jfE8fGEThd6_dYZM6gCA', // 🆕 ช่องใส่ token
 			payloadKey: localStorage.getItem('chat_key') || 'text',
 			timeoutMs: Number(localStorage.getItem('chat_timeout') || 1000000),
 			showSettings: false,
@@ -107,12 +107,12 @@ export default {
 			messages: [],
 			isShaking: false,
 			showTextArea: false,
-		messageText: '',
-		mediaRecorder: null,
-		isRecording: false,
-		pendingDuplicate: null, // 🆕 สำหรับเก็บ payload งานซ้ำ
-		lastUserMessage: '', // 🆕 เก็บข้อความล่าสุดของผู้ใช้
-	}
+		  messageText: '',
+		  mediaRecorder: null,
+		  isRecording: false,
+		  pendingDuplicate: null, // 🆕 สำหรับเก็บ payload งานซ้ำ
+		  lastUserMessage: '', // 🆕 เก็บข้อความล่าสุดของผู้ใช้
+	  }
 },
 
 	computed: {
@@ -166,13 +166,57 @@ export default {
 				alert("Cannot access microphone.");
 			}
 		},
-        // 🟢 เมื่อผู้ใช้กด "ยืนยันเพิ่มซ้ำ"
-    async confirmDuplicate() {
-      if (!this.pendingDuplicate) return;
-      const msg = `ยืนยันเพิ่มงาน "${this.pendingDuplicate}"`;
-      this.pendingDuplicate = null;
-      await this.sendMessage(msg);
-    },
+
+//_________________________________________________________________
+//++++++++++++++++++  เพิ่มปุ่มให้หน่อยย มีของเพิ่มอยู่ตรงนี้แต่มันไม่ออกอะ  ++++++++++++++++++++++++++++++///
+///----------------------------------------------------------------
+async confirmDuplicate() {
+  if (!this.pendingDuplicate) return;
+
+  const task = this.pendingDuplicate;
+  this.pendingDuplicate = null;
+
+  this.messages.push({
+    role: "assistant",
+    content: `กำลังเพิ่มงาน "${task.name || 'รายการใหม่'}" ...`,
+  });
+
+  try {
+    const targetUrl = "https://lumaai-backend-672244117841.asia-southeast1.run.app/api/task/my-tasks";
+
+    const res = await fetch(targetUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${this.token}`,
+      },
+      body: JSON.stringify({ tasks: [task] }),
+    });
+
+    const data = await res.json();
+
+    if (res.ok && !data.error) {
+      this.messages.push({
+        role: "assistant",
+        content: "✅ เพิ่มงานซ้ำสำเร็จแล้วครับ!",
+      });
+    } else {
+      this.messages.push({
+        role: "assistant",
+        content: `⚠️ เพิ่มงานไม่สำเร็จ: ${data.error || JSON.stringify(data)}`,
+      });
+    }
+  } catch (err) {
+    this.messages.push({
+      role: "assistant",
+      content: "❌ เกิดข้อผิดพลาดในการเพิ่มงานซ้ำ",
+    });
+  }
+
+  this.$nextTick(() => this.scrollToBottom());
+},
+
+
 
     // 🔴 เมื่อผู้ใช้กด "ยกเลิกเพิ่มซ้ำ"
     cancelDuplicate() {
@@ -182,242 +226,187 @@ export default {
       });
       this.pendingDuplicate = null;
     },
-  async sendMessage() {
-    const q = this.messageText.trim();
-    if (!q) return;
+    async sendMessage() {
+  const q = this.messageText.trim();
+  if (!q) return;
 
-    // 💬 แสดงข้อความผู้ใช้บนจอ
-    this.messages.push({ role: 'user', content: q });
-    this.lastUserMessage = q; // 🆕 เก็บข้อความล่าสุด
-    this.messageText = '';
-    this.loading = true;
-    this.$nextTick(() => this.scrollToBottom());
+  // 💬 แสดงข้อความผู้ใช้บนจอ
+  this.messages.push({ role: "user", content: q });
+  this.lastUserMessage = q;
+  this.messageText = '';
+  this.loading = true;
+  this.$nextTick(() => this.scrollToBottom());
 
-    try {
-        // ✅ สร้าง payload และแนบ token
-        const payload = { [this.payloadKey]: q };
-        const headers = {};
-        if (this.token) headers['Authorization'] = `Bearer ${this.token}`;
+  try {
+    // ✅ Payload ที่จะส่ง
+    const payload = { text: q };
 
-        // 🧠 ตรวจ keyword ก่อนยิง API
-        
-        const hasKeyword = q.includes("กรอก") || q.includes("เติม");
-        const targetUrl = hasKeyword
-          ? "http://localhost:8000/chat"
-          : this.url;
+    console.log("📡 Sending to:", this.url);
+    console.log("📦 Payload:", payload);
 
-        // ✅ ยิงตรงไป Cloud Run
-        const res = await axios.post(this.url, payload, {
-            timeout: this.timeoutMs,
-            headers,
-        });
+    // ✅ ส่งคำขอไปยัง Cloud Run โดยตรง
+    const res = await axios.post(
+      "https://lumaai-backend-672244117841.asia-southeast1.run.app/api/llm/",
+      payload,
+      {
+        timeout: this.timeoutMs,
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${this.token}`,
+        },
+      }
+    );
 
-        const response = res.data;
-        console.log('✅ Response:', response);
+    const response = res.data;
+    console.log("✅ Response:", response);
 
-        // === Android Logic Start ===
-        if (!response?.errors || response.errors.length === 0) {
-            let curInd = 0;
-
-            for (const it of response?.results || []) {
-                const isLast = curInd === response.results.length - 1;
-                const nextInd = !isLast ? curInd + 1 : curInd;
-                const nextIntent = response.results[nextInd]?.intent || '';
-
-                // ✅ 1. intent == CHECK และตัวถัดไปไม่ใช่ ADD/EDIT/DELETE
-                if (
-                    it.intent === 'CHECK' &&
-                    !['ADD', 'EDIT', 'DELETE'].includes(nextIntent)
-                ) {
-                    this.messages.push({
-                        role: 'assistant',
-                        content: 'นี่คืองานที่ฉันพบ',
-                    });
-
-                    for (const taskData of it.output || []) {
-                        if (taskData.id === '-1') continue;
-                        this.messages.push({
-                            role: 'task-view',
-                            task: taskData,
-                        });
-                    }
-                }
-
-                // ✅ 2. intent == ADD / EDIT / DELETE
-                if (['ADD', 'EDIT', 'DELETE'].includes(it.intent)) {
-                    const msgMap = {
-                        ADD: 'เพิ่มงานให้คุณแล้วครับ :D',
-                        EDIT: 'แก้ไขงานให้คุณแล้วครับ :D',
-                        DELETE: 'ลบงานให้คุณแล้วครับ :D',
-                    };
-                    this.messages.push({
-                        role: 'assistant',
-                        content: msgMap[it.intent],
-                    });
-                }
-
-                // ✅ 3. intent == SEARCH
-                if (it.intent === 'SEARCH') {
-                    this.messages.push({
-                        role: 'assistant',
-                        content: response.result || '',
-                    });
-                }
-
-                // ✅ 4. intent == GOOGLESEARCH
-                if (it.intent === 'GOOGLESEARCH') {
-                    this.messages.push({
-                        role: 'assistant',
-                        content: it.message || '',
-                    });
-                }
-
-                // ✅ 5. intent == GENFORM
-                if (it.intent === 'GENFORM') {
-                    const url = it.message;
-                    const fileName = url?.split('/').pop() || 'unknown.pdf';
-                    this.messages.push({
-                        role: 'assistant',
-                        content: `📄 สร้างแบบฟอร์ม: ${fileName}`,
-                        url,
-                    });
-                }
-
-                // ✅ 6. intent == EXIT
-                if (it.intent === 'EXIT') {
-                    this.messages.push({
-                        role: 'assistant',
-                        content: it.message || 'จบการสนทนาแล้วครับ',
-                    });
-                }
-
-                curInd++;
-            }
-        }
-
-        // === กรณีมี errors ===
-        else {
-            for (const err of response.errors) {
-                this.messages.push({
-                    role: 'assistant',
-                    content: err.message || '⚠️ มีบางอย่างผิดพลาด',
-                });
-
-                // ✅ ADD / EDIT / REMOVE จาก error output
-                if (Array.isArray(err.output) && err.output.length > 0) {
-                    const intent = err.intent?.toUpperCase();
-                    const outputs = err.output;
-
-                    if (intent === 'ADD') {
-                        const size = outputs.length;
-                        for (let i = 1; i < size; i++) {
-                            this.messages.push({
-                                role: 'task-view',
-                                task: outputs[i],
-                            });
-                        }
-                        this.messages.push({
-                            role: 'task-add',
-                            task: outputs[size - 1],
-                        });
-                    }
-
-                    if (intent === 'EDIT') {
-                        const size = outputs.length;
-                        for (let i = 1; i < size; i++) {
-                            this.messages.push({
-                                role: 'task-edit',
-                                task: outputs[i],
-                            });
-                        }
-                    }
-
-                    if (['REMOVE', 'DELETE'].includes(intent)) {
-                        for (const taskData of outputs) {
-                            this.messages.push({
-                                role: 'task-delete',
-                                task: taskData,
-                            });
-                        }
-                    }
-                }
-            }
-        }
-        // === Android Logic End ===
-
-    } catch (e) {
-        console.error('❌ Send error:', e);
+// === ✅ ตอบกลับจาก Backend ===
+if (response?.results && response.results.length > 0) {
+  // 🔍 วน loop ผ่านผลลัพธ์ทั้งหมด
+  for (const item of response.results) {
+    if (item.intent === "CHECK") {
+      if (item.output?.length > 0) {
         this.messages.push({
-            role: 'assistant',
-            content: 'ขออภัยครับ มีบางอย่างผิดพลาด ลองใหม่อีกครั้ง',
+          role: "assistant",
+          content: "🧾 งานที่ตรวจพบ:",
         });
-    } finally {
-        this.loading = false;
-        this.$nextTick(() => this.scrollToBottom());
+
+        item.output.forEach(task => {
+          if (task.id !== "-1") {
+            this.messages.push({
+              role: "assistant",
+              content: `• ${task.title || task.name || JSON.stringify(task)}`,
+            });
+          }
+        });
+//_________________________________________________________________
+//++++++++++++++++++  เพิ่มปุ่มให้หน่อยย  ++++++++++++++++++++++++++++++///
+///----------------------------------------------------------------
+        // 🟢 ถามต่อเลยว่า จะเพิ่มซ้ำไหม (เพิ่มแค่ตรงนี้) 
+        this.messages.push({
+          role: "assistant",
+          content: "พบรายการนี้อยู่แล้ว ต้องการเพิ่มซ้ำไหมครับ?",
+        });
+        // เก็บไว้ให้ปุ่ม confirmDuplicate ใช้
+        this.pendingDuplicate = item.output.find(t => t.id === "-1");
+      } else {
+        this.messages.push({
+          role: "assistant",
+          content: "ตรวจสอบแล้ว ไม่พบบันทึกที่เกี่ยวข้องครับ ✅",
+        });
+      }
     }
-  },
 
-		scrollToBottom() {
-			const chatHistory = this.$refs.chatHistory;
-			if (chatHistory) chatHistory.scrollTop = chatHistory.scrollHeight;
-		},
+    if (item.intent === "ADD") {
+      this.messages.push({
+        role: "assistant",
+        content: item.message || "เพิ่มงานให้คุณแล้วครับ :D",
+      });
+    }
 
-		async callApi(q) {
-			this.persist();
-			const t = this.controllerWithTimeout(this.timeoutMs);
-			try {
-				const res = await fetch(this.url, {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ [this.payloadKey]: q }),
-					mode: "cors",
-					signal: t.ctrl.signal,
-				});
-				t.cancel();
-				const data = await res.json();
+    if (item.intent === "EDIT") {
+      this.messages.push({
+        role: "assistant",
+        content: item.message || "แก้ไขงานให้คุณแล้วครับ :D",
+      });
+    }
 
-				// ✅ ตรวจจับกรณีซ้ำ
-				if (data.errors && Array.isArray(data.errors)) {
-					const duplicate = data.errors.find(e => e.intent === "ADD");
-					if (duplicate) {
-						this.pendingDuplicate = duplicate.output.filter(x => x.id === "-1");
-						const msg = duplicate.message || "พบงานซ้ำ ต้องการเพิ่มอีกไหม?";
-						this.messages.push({ role: "assistant", content: msg });
-						this.$nextTick(() => this.scrollToBottom());
-						return msg;
-					}
-				}
-				return this.pickAnswer(data);
+    if (item.intent === "DELETE") {
+      this.messages.push({
+        role: "assistant",
+        content: item.message || "ลบงานให้คุณแล้วครับ :D",
+      });
+    }
 
-			} catch (e) {
-				throw new Error(e.message || String(e));
-			}
-		},
+    if (item.intent === "EXIT") {
+      this.messages.push({
+        role: "assistant",
+        content: item.message || "สิ้นสุดการทำงานแล้วครับ 👋",
+      });
+    }
+  }
+} else {
+  // fallback ถ้าไม่มี results
+  this.messages.push({
+    role: "assistant",
+    content: response.result || "ขออภัยครับ ไม่พบข้อมูลตอบกลับที่เข้าใจได้",
+  });
+}
 
-		async confirmDuplicate() {
-			if (!this.pendingDuplicate) return;
-			try {
-				const res = await fetch(this.url, {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ tasks: this.pendingDuplicate }),
-				});
-				const data = await res.json();
-				this.messages.push({ role: "assistant", content: "✅ เพิ่มงานซ้ำสำเร็จแล้วครับ!" });
-				console.log("✅ Duplicate added:", data);
-			} catch (err) {
-				this.messages.push({ role: "assistant", content: "❌ เกิดข้อผิดพลาดในการเพิ่มงานซ้ำ" });
-			}
-			this.pendingDuplicate = null;
-			this.$nextTick(() => this.scrollToBottom());
-		},
+  } catch (e) {
+    console.error("❌ Send error:", e);
+    this.messages.push({
+      role: "assistant",
+      content: "⚠️ เกิดข้อผิดพลาดขณะเชื่อมต่อเซิร์ฟเวอร์ ลองใหม่อีกครั้งครับ",
+    });
+  } finally {
+    this.loading = false;
+    this.$nextTick(() => this.scrollToBottom());
+  }
+},
+async callApi(q) {
+  this.persist();
+  try {
+    const res = await axios.post(
+      "https://lumaai-backend-672244117841.asia-southeast1.run.app/api/llm/",
+      { text: q },
+      {
+        timeout: this.timeoutMs,
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${this.token}`,
+        },
+      }
+    );
 
-		cancelDuplicate() {
-			this.messages.push({ role: "assistant", content: "ยกเลิกการเพิ่มงานซ้ำแล้วครับ ✅" });
-			this.pendingDuplicate = null;
-			this.$nextTick(() => this.scrollToBottom());
-		},
+    const data = res.data;
 
+    if (data.errors && Array.isArray(data.errors)) {
+      const duplicate = data.errors.find(e => e.intent === "ADD");
+      if (duplicate) {
+        this.pendingDuplicate = duplicate.output.filter(x => x.id === "-1");
+        const msg = duplicate.message || "พบงานซ้ำ ต้องการเพิ่มอีกไหม?";
+        this.messages.push({ role: "assistant", content: msg });
+        this.$nextTick(() => this.scrollToBottom());
+        return msg;
+      }
+    }
+    return this.pickAnswer(data);
+  } catch (e) {
+    throw new Error(e.message || String(e));
+  }
+},
+
+async confirmDuplicate() {
+  if (!this.pendingDuplicate || !Array.isArray(this.pendingDuplicate)) return;
+
+  try {
+    const res = await axios.post(
+      (this.url || '').trim(),
+      { tasks: this.pendingDuplicate },    // ← ตรวจ schema ให้ตรงกับ backend
+      {
+        timeout: this.timeoutMs,
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${this.token}`,
+        },
+      }
+    );
+    this.messages.push({ role: "assistant", content: "✅ เพิ่มงานซ้ำสำเร็จแล้วครับ!" });
+    console.log("✅ Duplicate added:", res.data);
+  } catch (err) {
+    this.messages.push({ role: "assistant", content: "❌ เกิดข้อผิดพลาดในการเพิ่มงานซ้ำ" });
+  } finally {
+    this.pendingDuplicate = null;
+    this.$nextTick(() => this.scrollToBottom());
+  }
+},
+
+cancelDuplicate() {
+  this.messages.push({ role: "assistant", content: "ยกเลิกการเพิ่มงานซ้ำแล้วครับ ✅" });
+  this.pendingDuplicate = null;
+  this.$nextTick(() => this.scrollToBottom());
+},
 		controllerWithTimeout(ms) {
 			const ctrl = new AbortController();
 			const id = setTimeout(() => ctrl.abort(), ms);

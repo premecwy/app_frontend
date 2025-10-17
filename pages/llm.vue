@@ -98,7 +98,7 @@ export default {
 	data() {
 		return {
 			url: 'https://lumaai-backend-672244117841.asia-southeast1.run.app/api/llm/',
-      token: localStorage.getItem('chat_token') || 'eyJhbGciOiJIUzUxMiJ9.eyJlbWFpbCI6IjY1MTYwMjcxQGdvLmJ1dS5hYy50aCIsInN1YiI6IktYZVpwYUVPVVZWYVd2RVM2YXduMkN4Uk5iTjIiLCJpYXQiOjE3NjA2MDE4NTIsImV4cCI6MTc2MDYwMjAzMn0.swX8u5AgSfhLi_yYJro0HRxgLQRp1MJfqtiUzpiMsM7rVg-ZMhPgKxAbjRswd6ceJ4jfE8fGEThd6_dYZM6gCA', // 🆕 ช่องใส่ token
+      token: localStorage.getItem('chat_token') || 'eyJhbGciOiJIUzUxMiJ9.eyJlbWFpbCI6IjY1MTYwMjcxQGdvLmJ1dS5hYy50aCIsInN1YiI6IktYZVpwYUVPVVZWYVd2RVM2YXduMkN4Uk5iTjIiLCJpYXQiOjE3NjA2NjQ3NzgsImV4cCI6MTc2MDY2NDk1OH0.qWjUGIx_Ef7gWnAUr2w18s3PGHXFTmp2M6_tESq6PFwaR65eL2-mDmMYZOLdtd6HcvK3RhtZeBtezOXZAr4B0A', // 🆕 ช่องใส่ token
 			payloadKey: localStorage.getItem('chat_key') || 'text',
 			timeoutMs: Number(localStorage.getItem('chat_timeout') || 1000000),
 			showSettings: false,
@@ -122,50 +122,95 @@ export default {
 	},
 
 	methods: {
-	async handleDogClick() {
-		this.isShaking = true;
-		setTimeout(() => (this.isShaking = false), 2000);
+    async handleDogClick() {
+  this.isShaking = true;
+  setTimeout(() => (this.isShaking = false), 2000);
 
-			if (this.isRecording) {
-				if (this.mediaRecorder && this.mediaRecorder.state === "recording") {
-					this.mediaRecorder.stop();
-				}
-				this.isRecording = false;
-				return;
-			}
+  // ถ้ากำลังอัด → หยุดอัด
+  if (this.isRecording) {
+    if (this.mediaRecorder && this.mediaRecorder.state === "recording") {
+      this.mediaRecorder.stop();
+    }
+    this.isRecording = false;
+    return;
+  }
 
-			try {
-				const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-				this.mediaRecorder = new MediaRecorder(stream);
-				let chunks = [];
-				this.mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
-				this.mediaRecorder.onstop = async () => {
-					const audioBlob = new Blob(chunks, { type: "audio/wav" });
-					chunks = [];
-					if (audioBlob.size === 0) return;
+  try {
+    // ขอสิทธิ์ไมค์
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    this.mediaRecorder = new MediaRecorder(stream);
+    let chunks = [];
 
-					const formData = new FormData();
-					formData.append("file", audioBlob, "audio.wav");
+    this.mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
 
-					const sttRes = await fetch("http://127.0.0.1:8000/stt", { method: "POST", body: formData });
-					const sttData = await sttRes.json();
-					const recognizedText = sttData.text;
+    this.mediaRecorder.onstop = async () => {
+      const audioBlob = new Blob(chunks, { type: "audio/wav" });
+      chunks = [];
+      if (audioBlob.size === 0) return;
 
-				if (recognizedText) {
-					this.messages.push({ role: 'user', content: recognizedText });
-					this.lastUserMessage = recognizedText; // 🆕 เก็บข้อความจากเสียง
-					this.$nextTick(() => this.scrollToBottom());
-					const chatReply = await this.callApi(recognizedText);
-					this.messages.push({ role: 'assistant', content: chatReply });
-					this.$nextTick(() => this.scrollToBottom());
-				}
-				};
-				this.mediaRecorder.start();
-				this.isRecording = true;
-			} catch {
-				alert("Cannot access microphone.");
-			}
-		},
+      const formData = new FormData();
+      formData.append("file", audioBlob, "audio.wav");
+
+      try {
+        // 🧠 1️⃣ ส่งไฟล์เสียงไป /stt เพื่อแปลงเสียงเป็นข้อความ
+        const sttRes = await fetch("http://127.0.0.1:8000/stt", {
+          method: "POST",
+          body: formData,
+        });
+        const sttData = await sttRes.json();
+        const recognizedText = sttData.text?.trim();
+
+        if (!recognizedText) {
+          this.messages.push({
+            role: "assistant",
+            content: "😅 ฟังไม่ชัดเลย ลองพูดใหม่อีกทีนะครับ",
+          });
+          this.$nextTick(() => this.scrollToBottom());
+          return;
+        }
+
+        // 💬 2️⃣ แสดงข้อความผู้ใช้ (จากเสียง)
+        this.messages.push({ role: "user", content: recognizedText });
+        this.lastUserMessage = recognizedText;
+        this.$nextTick(() => this.scrollToBottom());
+
+        // 🤖 3️⃣ ส่งข้อความต่อไปยัง /llm/ ที่ Cloud Run
+        const llmRes = await fetch(
+          "https://lumaai-backend-672244117841.asia-southeast1.run.app/api/llm/",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${this.token}`,
+            },
+            body: JSON.stringify({ text: recognizedText }),
+          }
+        );
+
+        const llmData = await llmRes.json();
+
+        // 🗣️ 4️⃣ แสดงข้อความตอบกลับจากโมเดล
+        const replyText =
+          llmData.reply || llmData.result || llmData.message || JSON.stringify(llmData);
+
+        this.messages.push({ role: "assistant", content: replyText });
+        this.$nextTick(() => this.scrollToBottom());
+      } catch (err) {
+        console.error("❌ STT→LLM Error:", err);
+        this.messages.push({
+          role: "assistant",
+          content: "⚠️ เกิดข้อผิดพลาดขณะประมวลผลเสียงหรือการตอบกลับจากโมเดล",
+        });
+      }
+    };
+
+    // ▶️ เริ่มอัดเสียง
+    this.mediaRecorder.start();
+    this.isRecording = true;
+  } catch (e) {
+    alert("ไม่สามารถเข้าถึงไมโครโฟนได้");
+  }
+},
 
 //_________________________________________________________________
 //++++++++++++++++++  เพิ่มปุ่มให้หน่อยย มีของเพิ่มอยู่ตรงนี้แต่มันไม่ออกอะ  ++++++++++++++++++++++++++++++///
@@ -215,7 +260,6 @@ async confirmDuplicate() {
 
   this.$nextTick(() => this.scrollToBottom());
 },
-
 
 
     // 🔴 เมื่อผู้ใช้กด "ยกเลิกเพิ่มซ้ำ"

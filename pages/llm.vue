@@ -122,7 +122,7 @@ export default {
 	},
 
 	methods: {
-    async handleDogClick() {
+async handleDogClick() {
   this.isShaking = true;
   setTimeout(() => (this.isShaking = false), 2000);
 

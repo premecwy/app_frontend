@@ -302,6 +302,7 @@ async function loginWithToken() {
 // 🧩 Task CRUD
 // ===============================
 type Task = {
+  dateTime : string;
   id: string;
   name: string;
   description?: string;
@@ -563,53 +564,6 @@ onMounted(async () => {
     const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
     const nextWeek = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
     
-    tasks.value = [
-      {
-        id: "mock-1",
-        name: "Complete project proposal",
-        description: "Write and submit the quarterly project proposal for Q1 2024. Include budget estimates, timeline, and resource allocation.",
-        time_specified: true,
-        date: today,
-        time: "14:00:00",
-        done: false
-      },
-      {
-        id: "mock-2",
-        name: "Team meeting with stakeholders",
-        description: "Discuss project milestones and gather feedback from key stakeholders. Prepare presentation slides.",
-        time_specified: true,
-        date: today,
-        time: "16:30:00",
-        done: false
-      },
-      {
-        id: "mock-3",
-        name: "Review code changes",
-        description: "Review pull requests from team members and provide constructive feedback on implementation.",
-        time_specified: true,
-        date: tomorrow,
-        time: "10:00:00",
-        done: false
-      },
-      {
-        id: "mock-4",
-        name: "Update documentation",
-        description: "Update API documentation to reflect recent changes in the authentication flow and new endpoints.",
-        time_specified: true,
-        date: tomorrow,
-        time: "15:00:00",
-        done: true
-      },
-      {
-        id: "mock-5",
-        name: "Client presentation",
-        description: "Present the new features and improvements to the client. Prepare demo environment and backup slides.",
-        time_specified: true,
-        date: nextWeek,
-        time: "11:00:00",
-        done: false
-      }
-    ];
   }
 });
 </script>

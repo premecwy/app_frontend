@@ -134,8 +134,20 @@ async function loginGoogle() {
     localStorage.setItem("firebase_token", firebaseToken.value);
     localStorage.setItem("access_token", accessToken.value);
     localStorage.setItem("refresh_token", refreshToken.value);
+    
+    console.log("✅ Saved tokens to localStorage");
   } catch (err) {
     console.error("❌ Login failed:", err);
+
+    // ✅ เพิ่ม log ลึกขึ้น ถ้ามี response จาก backend
+    if (err.response) {
+      try {
+        const text = await err.response.text();
+        console.error("🔍 Backend Response:", text);
+      } catch (e) {
+        console.error("⚠️ Failed to read backend response:", e);
+      }
+    }
   }
 }
 

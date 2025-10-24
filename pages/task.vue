@@ -373,8 +373,31 @@ async function loadTasks() {
     });
 
     // ✅ ดึง tasks จาก key "results" ตาม response ที่เห็นใน Postman
-    const raw = res.data?.results;
-    tasks.value = Array.isArray(raw) ? raw : [];
+    const results = res.data?.results;
+    tasks.value = Array.isArray(results)
+  ? results.map((item: any) => {
+      let date = "";
+      let time = "";
+
+      if (item.dateTime) {
+        const [d, t] = item.dateTime.split("T");
+        date = d;
+        time = t?.substring(0, 5) || "";
+      }
+
+      return {
+        id: item.id || crypto.randomUUID(),
+        name: item.name || "-",
+        description: item.description || "No description",
+        dateTime: item.dateTime || "-",
+        rawDateTime: item.dateTime || null,
+        time_specified: item.time_specified ?? false,
+        status: item.status || "PENDING",
+        date, // ✅ สำคัญ
+        time, // ✅ สำคัญ
+      };
+    })
+  : [];
 
     console.log("✅ Tasks loaded:", tasks.value);
   } catch (e: any) {
@@ -384,7 +407,6 @@ async function loadTasks() {
     loading.value = false;
   }
 }
-
 
 async function addQuick() {
   if (!quickName.value.trim() || !uid.value) return;
@@ -480,18 +502,25 @@ function formatDate(d?: string) {
   }
 }
 
-async function fetchBackendToken() {
+
+function fetchBackendToken() { // <-- ไม่ต้องใช้ async/await แล้ว
   try {
-    const res = await axios.get(`http://127.0.0.1:8000/api/auth/token`);
-    const token = res.data?.access_token;
+    // 1. ✅ เปลี่ยนเป็นอ่านจาก localStorage ที่บันทึกไว้ตอน loginGoogle
+    const token = localStorage.getItem("access_token"); 
 
-    if (!token) throw new Error("No access_token found in backend response");
+    if (!token) {
+      throw new Error("ไม่พบ 'access_token' ใน localStorage (อาจจะยังไม่ได้ login)");
+    }
 
-    accessToken.value = token;
-    console.log("✅ Access token loaded:", token.slice(0, 20) + "...");
-  } catch (e: any) {
-    console.error("❌ Failed to fetch access token from backend:", e);
-    throw new Error("Cannot fetch token from backend");
+    // 2. เอา token ไปใส่ใน ref (ตามโค้ดของคุณ)
+    accessToken.value = token; 
+
+    console.log("✅ Access token loaded from localStorage:", token.slice(0, 20) + "...");
+
+  } catch (e: any) { // (ถ้าคุณใช้ TS)
+    console.error("❌ Failed to load access token from localStorage:", e);
+    // คุณอาจไม่จำเป็นต้อง throw Error ที่นี่ ให้ขึ้นอยู่กับการออกแบบแอปของคุณ
+    // throw new Error("Cannot load token from localStorage"); 
   }
 }
 
@@ -543,6 +572,7 @@ function deleteFromPopup() {
     closeTaskDetails();
   }
 }
+
 function openCreate() {
   alert("Open create form functionality to be implemented.");
 }

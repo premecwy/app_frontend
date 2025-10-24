@@ -98,7 +98,7 @@ export default {
 	data() {
 		return {
 			url: 'https://lumaai-backend-672244117841.asia-southeast1.run.app/api/llm/',
-      token: localStorage.getItem('chat_token') || 'eyJhbGciOiJIUzUxMiJ9.eyJlbWFpbCI6IjY1MTYwMjcxQGdvLmJ1dS5hYy50aCIsInN1YiI6IktYZVpwYUVPVVZWYVd2RVM2YXduMkN4Uk5iTjIiLCJpYXQiOjE3NjA2NjQ3NzgsImV4cCI6MTc2MDY2NDk1OH0.qWjUGIx_Ef7gWnAUr2w18s3PGHXFTmp2M6_tESq6PFwaR65eL2-mDmMYZOLdtd6HcvK3RhtZeBtezOXZAr4B0A', // 🆕 ช่องใส่ token
+      token: localStorage.getItem('chat_token') || "",
 			payloadKey: localStorage.getItem('chat_key') || 'text',
 			timeoutMs: Number(localStorage.getItem('chat_timeout') || 1000000),
 			showSettings: false,
@@ -121,7 +121,30 @@ export default {
 		},
 	},
 
-	methods: {
+methods: {
+  // เปลี่ยนจากยิง API (async) เป็นการอ่านจาก localStorage (sync)
+  fetchBackendToken() { 
+    try {
+      // 1. ✅ เปลี่ยนเป็นอ่านจาก localStorage ที่บันทึกไว้ตอน loginGoogle
+      const token = localStorage.getItem("access_token"); 
+      
+      if (!token) {
+        throw new Error("ไม่พบ 'access_token' ใน localStorage (อาจจะยังไม่ได้ login)");
+      }
+
+      // 2. เอา token ไปใส่ใน state ของ component (ตามโค้ดเดิม)
+      this.token = token; 
+
+      // 3. (ตามโค้ดเดิมของคุณ) บันทึกลง 'chat_token'
+      localStorage.setItem('chat_token', token);
+      
+      console.log("✅ Access token loaded from localStorage:", token.slice(0, 20) + "...");
+
+    } catch (e) {
+      console.error("❌ Failed to load access token from localStorage:", e);
+    }
+  },
+
 async handleDogClick() {
   this.isShaking = true;
   setTimeout(() => (this.isShaking = false), 2000);
@@ -195,6 +218,7 @@ async handleDogClick() {
 
         this.messages.push({ role: "assistant", content: replyText });
         this.$nextTick(() => this.scrollToBottom());
+        this.playTTS(replyText);
       } catch (err) {
         console.error("❌ STT→LLM Error:", err);
         this.messages.push({
@@ -260,8 +284,6 @@ async confirmDuplicate() {
 
   this.$nextTick(() => this.scrollToBottom());
 },
-
-
     // 🔴 เมื่อผู้ใช้กด "ยกเลิกเพิ่มซ้ำ"
     cancelDuplicate() {
       this.messages.push({
@@ -270,7 +292,9 @@ async confirmDuplicate() {
       });
       this.pendingDuplicate = null;
     },
-    async sendMessage() {
+    
+async sendMessage() {
+  if (!this.token) await this.fetchBackendToken();
   const q = this.messageText.trim();
   if (!q) return;
 
@@ -325,7 +349,7 @@ if (response?.results && response.results.length > 0) {
         });
 //_________________________________________________________________
 //++++++++++++++++++  เพิ่มปุ่มให้หน่อยย  ++++++++++++++++++++++++++++++///
-///----------------------------------------------------------------
+//----------------------------------------------------------------
         // 🟢 ถามต่อเลยว่า จะเพิ่มซ้ำไหม (เพิ่มแค่ตรงนี้) 
         this.messages.push({
           role: "assistant",
@@ -355,7 +379,7 @@ if (response?.results && response.results.length > 0) {
       });
     }
 
-    if (item.intent === "DELETE") {
+    if (item.intent === "REMOVE") {
       this.messages.push({
         role: "assistant",
         content: item.message || "ลบงานให้คุณแล้วครับ :D",
@@ -388,6 +412,24 @@ if (response?.results && response.results.length > 0) {
     this.$nextTick(() => this.scrollToBottom());
   }
 },
+
+async playTTS(text) {
+  try {
+    const res = await fetch("http://127.0.0.1:8000/tts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: text })
+    });
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    audio.play();
+  } catch (err) {
+    console.error("TTS Error:", err);
+  }
+},
+
 async callApi(q) {
   this.persist();
   try {
@@ -477,6 +519,15 @@ cancelDuplicate() {
 			return String(obj ?? '');
 		},
 	},
+
+  mounted() {
+  this.fetchBackendToken()
+    .then(() => {
+      console.log("✅ Token ready on mount:", this.token);
+    })
+    .catch(err => console.error("❌ Token load failed on mount:", err));
+},
+
 }
 </script>
 

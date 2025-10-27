@@ -118,7 +118,7 @@ async function loginGoogle() {
     console.log("✅ Firebase ID Token:", firebaseToken.value)
 
     // ✅ ส่งไป backend แลก access/refresh token
-    const res = await fetch("http://172.20.10.7:8000/api/auth/login-google", {
+    const res = await fetch("http://localhost:8000/api/auth/login-google", {
       method: "POST",
       headers: { "Content-Type": "application/json"},
       body: JSON.stringify({ "idToken": firebaseToken.value }),
@@ -134,7 +134,7 @@ async function loginGoogle() {
     localStorage.setItem("firebase_token", firebaseToken.value);
     localStorage.setItem("access_token", accessToken.value);
     localStorage.setItem("refresh_token", refreshToken.value);
-
+    
     console.log("✅ Saved tokens to localStorage");
   } catch (err) {
     console.error("❌ Login failed:", err);

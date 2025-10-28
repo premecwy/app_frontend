@@ -118,7 +118,7 @@ async function loginGoogle() {
     console.log("✅ Firebase ID Token:", firebaseToken.value)
 
     // ✅ ส่งไป backend แลก access/refresh token
-    const res = await fetch("http://localhost:8000/api/auth/login-google", {
+    const res = await fetch("https://luma-model-local.bkkz.org/api/auth/login-google", {
       method: "POST",
       headers: { "Content-Type": "application/json"},
       body: JSON.stringify({ "idToken": firebaseToken.value }),

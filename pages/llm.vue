@@ -1311,25 +1311,25 @@ mounted() {
 }
 
 .btn-confirm {
-  background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+  background: #05533a;
   color: white;
 }
 
 .btn-confirm:hover {
-  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  background: #033827;
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+  box-shadow: 0 4px 12px #516d64;
 }
 
 .btn-cancel {
-  background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+  background: #a41c1c;
   color: white;
 }
 
 .btn-cancel:hover {
-  background: linear-gradient(135deg, #DC2626 0%, #B91C1C 100%);
+  background: #751414;
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+  box-shadow: 0 4px 12px #744646;
 }
 
 .btn-confirm:active,

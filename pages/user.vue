@@ -92,7 +92,7 @@ import { auth, provider } from "../src/firebase";
 import { useRouter } from "vue-router";
 
 const router = useRouter();
-const user = ref({});
+const user = ref(null);
 const firebaseToken = ref("");
 const accessToken = ref("");
 const refreshToken = ref("");
@@ -105,7 +105,6 @@ function go() {
 async function loginGoogle() {
   try {
     const result = await signInWithPopup(auth, provider);
-    const user = result.user;
 
     user.value = {
       uid: result.user.uid,
@@ -117,6 +116,9 @@ async function loginGoogle() {
     firebaseToken.value = await result.user.getIdToken(true); // 🔥 บรรทัดนี้เพิ่ม force refresh token
     console.log("✅ Firebase ID Token:", firebaseToken.value)
 
+    localStorage.setItem("user_profile", JSON.stringify(user.value));
+    localStorage.setItem("firebase_token", firebaseToken.value);
+    
     // ✅ ส่งไป backend แลก access/refresh token
     const res = await fetch("https://luma-model-local.bkkz.org/api/auth/login-google", {
       method: "POST",

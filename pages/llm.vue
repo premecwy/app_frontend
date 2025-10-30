@@ -94,440 +94,459 @@
 import axios from 'axios'
 export default {
   
-	name: 'LlmPage',
-	data() {
-		return {
-			url: 'https://lumaai-backend-672244117841.asia-southeast1.run.app/api/llm/',
-      token: localStorage.getItem('chat_token') || "",
-			payloadKey: localStorage.getItem('chat_key') || 'text',
-			timeoutMs: Number(localStorage.getItem('chat_timeout') || 1000000),
-			showSettings: false,
-			draft: '',
-			loading: false,
-			messages: [],
-			isShaking: false,
-			showTextArea: false,
-		  messageText: '',
-		  mediaRecorder: null,
-		  isRecording: false,
-		  pendingDuplicate: null, // 🆕 สำหรับเก็บ payload งานซ้ำ
-		  lastUserMessage: '', // 🆕 เก็บข้อความล่าสุดของผู้ใช้
-	  }
+  name: 'LlmPage',
+  data() {
+  return {
+    url: 'https://lumaai-backend-672244117841.asia-southeast1.run.app/api/llm/',
+    token: localStorage.getItem('chat_token') || "",
+    payloadKey: localStorage.getItem('chat_key') || 'text',
+    timeoutMs: Number(localStorage.getItem('chat_timeout') || 1000000),
+    showSettings: false,
+    draft: '',
+    loading: false,
+    messages: [],
+    isShaking: false,
+    showTextArea: false,
+    messageText: '',
+    mediaRecorder: null,
+    isRecording: false,
+    pendingDuplicate: null, // 🆕 สำหรับเก็บ payload งานซ้ำ
+    lastUserMessage: '', // 🆕 เก็บข้อความล่าสุดของผู้ใช้
+  }
 },
-
-	computed: {
-		canSend() {
-			return this.messageText.trim().length > 0;
-		},
-	},
-
+computed: {
+  canSend() {
+    return this.messageText.trim().length > 0;
+  },
+},
 methods: {
-  // เปลี่ยนจากยิง API (async) เป็นการอ่านจาก localStorage (sync)
-  fetchBackendToken() { 
+  // --- Lifecycle & Auth ---
+
+  async fetchBackendToken() {
     try {
-      // 1. ✅ เปลี่ยนเป็นอ่านจาก localStorage ที่บันทึกไว้ตอน loginGoogle
-      const token = localStorage.getItem("access_token"); 
-      
-      if (!token) {
-        throw new Error("ไม่พบ 'access_token' ใน localStorage (อาจจะยังไม่ได้ login)");
-      }
-
-      // 2. เอา token ไปใส่ใน state ของ component (ตามโค้ดเดิม)
-      this.token = token; 
-
-      // 3. (ตามโค้ดเดิมของคุณ) บันทึกลง 'chat_token'
+      const res = await axios.get("https://luma-model-local.bkkz.org/api/auth/token");
+      const token = res.data?.access_token;
+      if (!token) throw new Error("No access_token found in backend response");
+      this.token = token;
       localStorage.setItem('chat_token', token);
-      
-      console.log("✅ Access token loaded from localStorage:", token.slice(0, 20) + "...");
-
+      console.log("✅ Access token loaded:", token.slice(0, 20) + "...");
     } catch (e) {
-      console.error("❌ Failed to load access token from localStorage:", e);
+      console.error("❌ Failed to fetch access token:", e);
     }
   },
 
-async handleDogClick() {
-  this.isShaking = true;
-  setTimeout(() => (this.isShaking = false), 2000);
+  // --- Core Chat Flow ---
 
-  // ถ้ากำลังอัด → หยุดอัด
-  if (this.isRecording) {
-    if (this.mediaRecorder && this.mediaRecorder.state === "recording") {
-      this.mediaRecorder.stop();
-    }
-    this.isRecording = false;
-    return;
-  }
+  async sendMessage() {
+    if (!this.token) await this.fetchBackendToken();
+    const q = this.messageText.trim();
+    if (!q) return;
 
-  try {
-    // ขอสิทธิ์ไมค์
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    this.mediaRecorder = new MediaRecorder(stream);
-    let chunks = [];
+    // 💬 แสดงข้อความผู้ใช้บนจอ
+    this.messages.push({
+      role: "user",
+      content: q
+    });
+    this.lastUserMessage = q;
+    this.messageText = '';
+    this.loading = true;
+    this.$nextTick(() => this.scrollToBottom());
 
-    this.mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
+    try {
+      // ✅ Payload ที่จะส่ง
+      const payload = {
+        text: q
+      };
+      console.log("📡 Sending to:", this.url);
+      console.log("📦 Payload:", payload);
 
-    this.mediaRecorder.onstop = async () => {
-      const audioBlob = new Blob(chunks, { type: "audio/wav" });
-      chunks = [];
-      if (audioBlob.size === 0) return;
-
-      const formData = new FormData();
-      formData.append("file", audioBlob, "audio.wav");
-
-      try {
-        // 🧠 1️⃣ ส่งไฟล์เสียงไป /stt เพื่อแปลงเสียงเป็นข้อความ
-        const sttRes = await fetch("http://127.0.0.1:8000/stt", {
-          method: "POST",
-          body: formData,
-        });
-        const sttData = await sttRes.json();
-        const recognizedText = sttData.text?.trim();
-
-        if (!recognizedText) {
-          this.messages.push({
-            role: "assistant",
-            content: "😅 ฟังไม่ชัดเลย ลองพูดใหม่อีกทีนะครับ",
-          });
-          this.$nextTick(() => this.scrollToBottom());
-          return;
+      // ✅ ส่งคำขอไปยัง Cloud Run โดยตรง
+      const res = await axios.post(
+        "https://lumaai-backend-672244117841.asia-southeast1.run.app/api/llm/",
+        payload, {
+          timeout: this.timeoutMs,
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${this.token}`,
+          },
         }
+      );
 
-        // 💬 2️⃣ แสดงข้อความผู้ใช้ (จากเสียง)
-        this.messages.push({ role: "user", content: recognizedText });
-        this.lastUserMessage = recognizedText;
-        this.$nextTick(() => this.scrollToBottom());
+      let response = res.data; // <--- แก้ไข: ใช้ let แทน const
+      console.log("DEBUG 1: RAW RESPONSE DATA:", JSON.stringify(response, null, 2));
+      // ตรวจสอบว่า response.results มีอยู่จริงหรือไม่
+      console.log("DEBUG 2: Checking response.results...", response?.results);
 
-        // 🤖 3️⃣ ส่งข้อความต่อไปยัง /llm/ ที่ Cloud Run
-        const llmRes = await fetch(
-          "https://lumaai-backend-672244117841.asia-southeast1.run.app/api/llm/",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${this.token}`,
-            },
-            body: JSON.stringify({ text: recognizedText }),
-          }
-        );
+      if (typeof response === 'string') {
+        try {
+          console.log("DEBUG: Response was a string. Attempting JSON.parse()...");
+          response = JSON.parse(response);
+        } catch (e) {
+          console.error("DEBUG: Failed to parse string response!", e);
+          // ถ้า parse พัง, ก็ใช้ string เดิมไป (เพื่อไปเข้า else)
+        }
+      }
 
-        const llmData = await llmRes.json();
+      console.log("DEBUG 2: response.results is Array?", Array.isArray(response?.results));
 
-        // 🗣️ 4️⃣ แสดงข้อความตอบกลับจากโมเดล
-        const replyText =
-          llmData.reply || llmData.result || llmData.message || JSON.stringify(llmData);
-
-        this.messages.push({ role: "assistant", content: replyText });
-        this.$nextTick(() => this.scrollToBottom());
-        this.playTTS(replyText);
-      } catch (err) {
-        console.error("❌ STT→LLM Error:", err);
+      // 🆕 Handle กรณี intent = "SEARCH" หรือข้อความเดี่ยวจาก LLM
+      if (!response.results || response.results.length === 0) {
+        // ถ้า backend ส่งผลลัพธ์เดี่ยว (ไม่ได้อยู่ใน results array)
+        const replyText = response.result || response.message || response.reply || response.text || JSON.stringify(response);
         this.messages.push({
           role: "assistant",
-          content: "⚠️ เกิดข้อผิดพลาดขณะประมวลผลเสียงหรือการตอบกลับจากโมเดล",
+          content: replyText || "ไม่พบข้อมูลจากการค้นหา 🤔",
         });
+        this.$nextTick(() => this.scrollToBottom());
+        return; // ❗️ออกเลย ไม่ต้องเข้า loop ด้านล่าง
       }
-    };
 
-    // ▶️ เริ่มอัดเสียง
-    this.mediaRecorder.start();
-    this.isRecording = true;
-  } catch (e) {
-    alert("ไม่สามารถเข้าถึงไมโครโฟนได้");
-  }
-},
+      // === ✅ ตอบกลับจาก Backend ===
+      // (ถ้ามี results)
+      for (const item of response.results) {
+        // 🆕 Intent: SEARCH
+        if (item.intent === "SEARCH") {
+          console.log("🧠 DEBUG: Intent SEARCH detected:", item.message);
+          this.messages.push({
+            role: "assistant",
+            content: item.message || item.result || "ไม่พบข้อมูลจากการค้นหา 🤔",
+          });
+          this.$nextTick(() => this.scrollToBottom());
+          continue; // ➡️ ข้ามไป intent ถัดไปเลย
+        }
 
-//_________________________________________________________________
-//++++++++++++++++++  เพิ่มปุ่มให้หน่อยย มีของเพิ่มอยู่ตรงนี้แต่มันไม่ออกอะ  ++++++++++++++++++++++++++++++///
-///----------------------------------------------------------------
-async confirmDuplicate() {
-  if (!this.pendingDuplicate) return;
+        if (item.intent === "CHECK") {
+          if (item.output?.length > 0) {
+            this.messages.push({
+              role: "assistant",
+              content: "🧾 งานที่ตรวจพบ:",
+            });
+            item.output.forEach(task => {
+              if (task.id !== "-1") {
+                this.messages.push({
+                  role: "assistant",
+                  content: `• ${task.title || task.name || JSON.stringify(task)}`,
+                });
+              }
+            });
 
-  const task = this.pendingDuplicate;
-  this.pendingDuplicate = null;
+            // 🟢 ถามต่อเลยว่า จะเพิ่มซ้ำไหม
+            this.messages.push({
+              role: "assistant",
+              content: "พบรายการนี้อยู่แล้ว ต้องการเพิ่มซ้ำไหมครับ?",
+            });
+            // เก็บไว้ให้ปุ่ม confirmDuplicate ใช้
+            this.pendingDuplicate = item.output.find(t => t.id === "-1");
+          } else {
+            this.messages.push({
+              role: "assistant",
+              content: "ตรวจสอบแล้ว ไม่พบบันทึกที่เกี่ยวข้องครับ ✅",
+            });
+          }
+        }
+        if (item.intent === "ADD") {
+          this.messages.push({
+            role: "assistant",
+            content: item.message || "เพิ่มงานให้คุณแล้วครับ :D",
+          });
+        }
+        if (item.intent === "EDIT") {
+          this.messages.push({
+            role: "assistant",
+            content: item.message || "แก้ไขงานให้คุณแล้วครับ :D",
+          });
+        }
+        if (item.intent === "REMOVE") {
+          this.messages.push({
+            role: "assistant",
+            content: item.message || "ลบงานให้คุณแล้วครับ :D",
+          });
+        }
+        if (item.intent === "EXIT") {
+          this.messages.push({
+            role: "assistant",
+            content: item.message || "สิ้นสุดการทำงานแล้วครับ 👋",
+          });
+        }
+      }
 
-  this.messages.push({
-    role: "assistant",
-    content: `กำลังเพิ่มงาน "${task.name || 'รายการใหม่'}" ...`,
-  });
-
-  try {
-    const targetUrl = "https://lumaai-backend-672244117841.asia-southeast1.run.app/api/task/my-tasks";
-
-    const res = await fetch(targetUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${this.token}`,
-      },
-      body: JSON.stringify({ tasks: [task] }),
-    });
-
-    const data = await res.json();
-
-    if (res.ok && !data.error) {
+    } catch (e) {
+      console.error("❌ Send error:", e);
       this.messages.push({
         role: "assistant",
-        content: "✅ เพิ่มงานซ้ำสำเร็จแล้วครับ!",
+        content: "⚠️ เกิดข้อผิดพลาดขณะเชื่อมต่อเซิร์ฟเวอร์ ลองใหม่อีกครั้งครับ",
       });
-    } else {
-      this.messages.push({
-        role: "assistant",
-        content: `⚠️ เพิ่มงานไม่สำเร็จ: ${data.error || JSON.stringify(data)}`,
-      });
+    } finally {
+      this.loading = false;
+      this.$nextTick(() => this.scrollToBottom());
     }
-  } catch (err) {
+  },
+
+  // --- Audio Flow (STT/TTS) ---
+
+  async handleDogClick() {
+    this.isShaking = true;
+    setTimeout(() => (this.isShaking = false), 2000);
+
+    // ถ้ากำลังอัด → หยุดอัด
+    if (this.isRecording) {
+      if (this.mediaRecorder && this.mediaRecorder.state === "recording") {
+        this.mediaRecorder.stop();
+      }
+      this.isRecording = false;
+      return;
+    }
+
+    try {
+      // ขอสิทธิ์ไมค์
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true
+      });
+      this.mediaRecorder = new MediaRecorder(stream);
+      let chunks = [];
+
+      this.mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
+
+      this.mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(chunks, {
+          type: "audio/wav"
+        });
+        chunks = [];
+        if (audioBlob.size === 0) return;
+
+        const formData = new FormData();
+        formData.append("file", audioBlob, "audio.wav");
+
+        try {
+          // 🧠 1️⃣ ส่งไฟล์เสียงไป /stt เพื่อแปลงเสียงเป็นข้อความ
+          const sttRes = await fetch("https://luma-model-local.bkkz.org/stt", {
+            method: "POST",
+            body: formData,
+          });
+          const sttData = await sttRes.json();
+          const recognizedText = sttData.text?.trim();
+
+          if (!recognizedText) {
+            this.messages.push({
+              role: "assistant",
+              content: "😅 ฟังไม่ชัดเลย ลองพูดใหม่อีกทีนะครับ",
+            });
+            this.$nextTick(() => this.scrollToBottom());
+            return;
+          }
+
+          // 💬 2️⃣ แสดงข้อความผู้ใช้ (จากเสียง)
+          this.messages.push({
+            role: "user",
+            content: recognizedText
+          });
+          this.lastUserMessage = recognizedText;
+          this.$nextTick(() => this.scrollToBottom());
+
+          // 🤖 3️⃣ ส่งข้อความต่อไปยัง /llm/ ที่ Cloud Run
+          const llmRes = await fetch(
+            "https://lumaai-backend-672244117841.asia-southeast1.run.app/api/llm/", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${this.token}`,
+              },
+              body: JSON.stringify({
+                text: recognizedText
+              }),
+            }
+          );
+          const llmData = await llmRes.json();
+
+          // 🗣️ 4️⃣ แสดงข้อความตอบกลับจากโมเดล
+          const replyText = llmData.reply || llmData.result || llmData.message || JSON.stringify(llmData);
+          this.messages.push({
+            role: "assistant",
+            content: replyText
+          });
+          this.$nextTick(() => this.scrollToBottom());
+          this.playTTS(replyText);
+
+        } catch (err) {
+          console.error("❌ STT→LLM Error:", err);
+          this.messages.push({
+            role: "assistant",
+            content: "⚠️ เกิดข้อผิดพลาดขณะประมวลผลเสียงหรือการตอบกลับจากโมเดล",
+          });
+        }
+      };
+
+      // ▶️ เริ่มอัดเสียง
+      this.mediaRecorder.start();
+      this.isRecording = true;
+
+    } catch (e) {
+      alert("ไม่สามารถเข้าถึงไมโครโฟนได้");
+    }
+  },
+
+  async playTTS(text) {
+    try {
+      const res = await fetch("https://luma-model-local.bkkz.org/tts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          message: text
+        })
+      });
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audio.play();
+    } catch (err) {
+      console.error("TTS Error:", err);
+    }
+  },
+
+  // --- Duplicate Handling (ย้ายมาจากส่วนที่คุณคอมเมนต์ไว้) ---
+
+  async confirmDuplicate() {
+    if (!this.pendingDuplicate) return;
+    const task = this.pendingDuplicate;
+    this.pendingDuplicate = null;
     this.messages.push({
       role: "assistant",
-      content: "❌ เกิดข้อผิดพลาดในการเพิ่มงานซ้ำ",
+      content: `กำลังเพิ่มงาน "${task.name || 'รายการใหม่'}" ...`,
     });
-  }
 
-  this.$nextTick(() => this.scrollToBottom());
-},
-    // 🔴 เมื่อผู้ใช้กด "ยกเลิกเพิ่มซ้ำ"
-    cancelDuplicate() {
-      this.messages.push({
-        role: "assistant",
-        content: "❌ ยกเลิกการเพิ่มงานซ้ำแล้วครับ",
-      });
-      this.pendingDuplicate = null;
-    },
-    
-async sendMessage() {
-  if (!this.token) await this.fetchBackendToken();
-  const q = this.messageText.trim();
-  if (!q) return;
-
-  // 💬 แสดงข้อความผู้ใช้บนจอ
-  this.messages.push({ role: "user", content: q });
-  this.lastUserMessage = q;
-  this.messageText = '';
-  this.loading = true;
-  this.$nextTick(() => this.scrollToBottom());
-
-  try {
-    // ✅ Payload ที่จะส่ง
-    const payload = { text: q };
-
-    console.log("📡 Sending to:", this.url);
-    console.log("📦 Payload:", payload);
-
-    // ✅ ส่งคำขอไปยัง Cloud Run โดยตรง
-    const res = await axios.post(
-      "https://lumaai-backend-672244117841.asia-southeast1.run.app/api/llm/",
-      payload,
-      {
-        timeout: this.timeoutMs,
+    try {
+      const targetUrl = "https://lumaai-backend-672244117841.asia-southeast1.run.app/api/task/my-tasks";
+      const res = await fetch(targetUrl, {
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${this.token}`,
         },
-      }
-    );
-
-    const response = res.data;
-    console.log("✅ Response:", response);
-
-// === ✅ ตอบกลับจาก Backend ===
-if (response?.results && response.results.length > 0) {
-  // 🔍 วน loop ผ่านผลลัพธ์ทั้งหมด
-  for (const item of response.results) {
-    if (item.intent === "CHECK") {
-      if (item.output?.length > 0) {
+        body: JSON.stringify({
+          tasks: [task]
+        }), // ส่งเป็น Array ตามที่ backend ดูเหมือนจะต้องการ
+      });
+      const data = await res.json();
+      if (res.ok && !data.error) {
         this.messages.push({
           role: "assistant",
-          content: "🧾 งานที่ตรวจพบ:",
+          content: "✅ เพิ่มงานซ้ำสำเร็จแล้วครับ!",
         });
-
-        item.output.forEach(task => {
-          if (task.id !== "-1") {
-            this.messages.push({
-              role: "assistant",
-              content: `• ${task.title || task.name || JSON.stringify(task)}`,
-            });
-          }
-        });
-//_________________________________________________________________
-//++++++++++++++++++  เพิ่มปุ่มให้หน่อยย  ++++++++++++++++++++++++++++++///
-//----------------------------------------------------------------
-        // 🟢 ถามต่อเลยว่า จะเพิ่มซ้ำไหม (เพิ่มแค่ตรงนี้) 
-        this.messages.push({
-          role: "assistant",
-          content: "พบรายการนี้อยู่แล้ว ต้องการเพิ่มซ้ำไหมครับ?",
-        });
-        // เก็บไว้ให้ปุ่ม confirmDuplicate ใช้
-        this.pendingDuplicate = item.output.find(t => t.id === "-1");
       } else {
         this.messages.push({
           role: "assistant",
-          content: "ตรวจสอบแล้ว ไม่พบบันทึกที่เกี่ยวข้องครับ ✅",
+          content: `⚠️ เพิ่มงานไม่สำเร็จ: ${data.error || JSON.stringify(data)}`,
         });
       }
-    }
-
-    if (item.intent === "ADD") {
+    } catch (err) {
       this.messages.push({
         role: "assistant",
-        content: item.message || "เพิ่มงานให้คุณแล้วครับ :D",
+        content: "❌ เกิดข้อผิดพลาดในการเพิ่มงานซ้ำ",
       });
     }
+    this.$nextTick(() => this.scrollToBottom());
+  },
 
-    if (item.intent === "EDIT") {
-      this.messages.push({
-        role: "assistant",
-        content: item.message || "แก้ไขงานให้คุณแล้วครับ :D",
-      });
-    }
-
-    if (item.intent === "REMOVE") {
-      this.messages.push({
-        role: "assistant",
-        content: item.message || "ลบงานให้คุณแล้วครับ :D",
-      });
-    }
-
-    if (item.intent === "EXIT") {
-      this.messages.push({
-        role: "assistant",
-        content: item.message || "สิ้นสุดการทำงานแล้วครับ 👋",
-      });
-    }
-  }
-} else {
-  // fallback ถ้าไม่มี results
-  this.messages.push({
-    role: "assistant",
-    content: response.result || "ขออภัยครับ ไม่พบข้อมูลตอบกลับที่เข้าใจได้",
-  });
-}
-
-  } catch (e) {
-    console.error("❌ Send error:", e);
+  // 🔴 เมื่อผู้ใช้กด "ยกเลิกเพิ่มซ้ำ"
+  cancelDuplicate() {
     this.messages.push({
       role: "assistant",
-      content: "⚠️ เกิดข้อผิดพลาดขณะเชื่อมต่อเซิร์ฟเวอร์ ลองใหม่อีกครั้งครับ",
+      content: "❌ ยกเลิกการเพิ่มงานซ้ำแล้วครับ",
     });
-  } finally {
-    this.loading = false;
-    this.$nextTick(() => this.scrollToBottom());
-  }
-},
-
-async playTTS(text) {
-  try {
-    const res = await fetch("http://127.0.0.1:8000/tts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: text })
-    });
-
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const audio = new Audio(url);
-    audio.play();
-  } catch (err) {
-    console.error("TTS Error:", err);
-  }
-},
-
-async callApi(q) {
-  this.persist();
-  try {
-    const res = await axios.post(
-      "https://lumaai-backend-672244117841.asia-southeast1.run.app/api/llm/",
-      { text: q },
-      {
-        timeout: this.timeoutMs,
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${this.token}`,
-        },
-      }
-    );
-
-    const data = res.data;
-
-    if (data.errors && Array.isArray(data.errors)) {
-      const duplicate = data.errors.find(e => e.intent === "ADD");
-      if (duplicate) {
-        this.pendingDuplicate = duplicate.output.filter(x => x.id === "-1");
-        const msg = duplicate.message || "พบงานซ้ำ ต้องการเพิ่มอีกไหม?";
-        this.messages.push({ role: "assistant", content: msg });
-        this.$nextTick(() => this.scrollToBottom());
-        return msg;
-      }
-    }
-    return this.pickAnswer(data);
-  } catch (e) {
-    throw new Error(e.message || String(e));
-  }
-},
-
-async confirmDuplicate() {
-  if (!this.pendingDuplicate || !Array.isArray(this.pendingDuplicate)) return;
-
-  try {
-    const res = await axios.post(
-      (this.url || '').trim(),
-      { tasks: this.pendingDuplicate },    // ← ตรวจ schema ให้ตรงกับ backend
-      {
-        timeout: this.timeoutMs,
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${this.token}`,
-        },
-      }
-    );
-    this.messages.push({ role: "assistant", content: "✅ เพิ่มงานซ้ำสำเร็จแล้วครับ!" });
-    console.log("✅ Duplicate added:", res.data);
-  } catch (err) {
-    this.messages.push({ role: "assistant", content: "❌ เกิดข้อผิดพลาดในการเพิ่มงานซ้ำ" });
-  } finally {
     this.pendingDuplicate = null;
     this.$nextTick(() => this.scrollToBottom());
-  }
+  },
+
+  // --- API & Utilities ---
+
+  async callApi(q) {
+    this.persist();
+    try {
+      const res = await axios.post(
+        "https://lumaai-backend-672244117841.asia-southeast1.run.app/api/llm/", {
+          text: q
+        }, {
+          timeout: this.timeoutMs,
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${this.token}`,
+          },
+        }
+      );
+      const data = res.data;
+
+      // Logic การจัดการ duplicate ในนี้ดูเหมือนจะซ้ำซ้อนกับใน sendMessage
+      // แต่ผมจะคงไว้ก่อน
+      if (data.errors && Array.isArray(data.errors)) {
+        const duplicate = data.errors.find(e => e.intent === "ADD");
+        if (duplicate) {
+          // สังเกต: ตรงนี้ set pendingDuplicate เป็น Array
+          // ในขณะที่ sendMessage set เป็น Object
+          // นี่อาจเป็นจุดที่ต้องตรวจสอบ logic ครับ
+          this.pendingDuplicate = duplicate.output.filter(x => x.id === "-1");
+          const msg = duplicate.message || "พบงานซ้ำ ต้องการเพิ่มอีกไหม?";
+          this.messages.push({
+            role: "assistant",
+            content: msg
+          });
+          this.$nextTick(() => this.scrollToBottom());
+          return msg;
+        }
+      }
+      return this.pickAnswer(data);
+    } catch (e) {
+      throw new Error(e.message || String(e));
+    }
+  },
+
+  scrollToBottom() {
+    this.$nextTick(() => {
+      const container = this.$refs.chatHistory;
+      if (container) {
+        container.scrollTop = container.scrollHeight;
+      }
+    });
+  },
+
+  controllerWithTimeout(ms) {
+    const ctrl = new AbortController();
+    const id = setTimeout(() => ctrl.abort(), ms);
+    return {
+      ctrl,
+      cancel: () => clearTimeout(id)
+    };
+  },
+
+  persist() {
+    localStorage.setItem('chat_url', this.url);
+    localStorage.setItem('chat_key', this.payloadKey);
+    localStorage.setItem('chat_timeout', String(this.timeoutMs));
+  },
+
+  pickAnswer(obj) {
+    if (obj && typeof obj === 'object') {
+      if (obj.result) return String(obj.result);
+      if (obj.message) return String(obj.message);
+      if (obj.text) return String(obj.text);
+      try {
+        return JSON.stringify(obj, null, 2);
+      } catch {
+        return String(obj);
+      }
+    }
+    return String(obj ?? '');
+  },
+
 },
-
-cancelDuplicate() {
-  this.messages.push({ role: "assistant", content: "ยกเลิกการเพิ่มงานซ้ำแล้วครับ ✅" });
-  this.pendingDuplicate = null;
-  this.$nextTick(() => this.scrollToBottom());
-},
-		controllerWithTimeout(ms) {
-			const ctrl = new AbortController();
-			const id = setTimeout(() => ctrl.abort(), ms);
-			return { ctrl, cancel: () => clearTimeout(id) };
-		},
-
-		persist() {
-			localStorage.setItem('chat_url', this.url);
-			localStorage.setItem('chat_key', this.payloadKey);
-			localStorage.setItem('chat_timeout', String(this.timeoutMs));
-		},
-
-		pickAnswer(obj) {
-			if (obj && typeof obj === 'object') {
-				if (obj.result) return String(obj.result);
-				if (obj.message) return String(obj.message);
-				if (obj.text) return String(obj.text);
-				try {
-					return JSON.stringify(obj, null, 2);
-				} catch {
-					return String(obj);
-				}
-			}
-			return String(obj ?? '');
-		},
-	},
-
-  mounted() {
+mounted() {
   this.fetchBackendToken()
     .then(() => {
       console.log("✅ Token ready on mount:", this.token);
     })
     .catch(err => console.error("❌ Token load failed on mount:", err));
 },
-
 }
 </script>
 

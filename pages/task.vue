@@ -315,7 +315,18 @@ type Task = {
 // Start editing a task
 function startEdit(task: Task) {
   editingId.value = task.id;
-  form.value = { ...task };
+
+  // 2. คัดลอกข้อมูล *เก่า* เก็บไว้เปรียบเทียบ
+  originalTaskData.value = {
+    name: task.name,
+    description: task.description,
+    time_specified: task.time_specified,
+    date: task.date,
+    time: task.time,
+  };
+
+  // 3. คัดลอกข้อมูลไปใส่ใน form (เหมือนเดิม)
+  form.value = { ...originalTaskData.value };
   openForm.value = true;
 }
 
@@ -328,6 +339,7 @@ const addingQuick = ref(false);
 const quickError = ref("");
 const openForm = ref(false);
 const editingId = ref<string | null>(null);
+const originalTaskData = ref<Partial<Task> | null>(null);
 const submitting = ref(false);
 const formError = ref("");
 const form = ref<Partial<Task>>({
@@ -366,9 +378,9 @@ async function loadTasks() {
   try {
     if (!accessToken.value) await fetchBackendToken();
 
-    const res = await axios.get(`${backendBase}/task/my-tasks`, {
+    const res = await axios.get(`${backendBase}/task/my-tasks`, { 
       headers: {
-        Authorization: `Bearer ${accessToken.value}`,
+        Authorization: `Bearer ${accessToken.value}`, 
       },
     });
 
@@ -408,73 +420,151 @@ async function loadTasks() {
   }
 }
 
+// ✅ POST /api/task/
 async function addQuick() {
-  if (!quickName.value.trim() || !uid.value) return;
+  if (!quickName.value.trim()) return;
   addingQuick.value = true;
   quickError.value = "";
   try {
-    const tasksRef = databaseRef(db, `users/${uid.value}/tasks`);
+    if (!accessToken.value) await fetchBackendToken();
     const newTask = {
       name: quickName.value,
       done: false,
       time_specified: false,
-      createdAt: new Date().toISOString(),
     };
-    await push(tasksRef, newTask);
+    await axios.post(`${backendBase}/task`, newTask, { // [อ้างอิง: image_e9c51e.png]
+      headers: { Authorization: `Bearer ${accessToken.value}` }
+    });
     quickName.value = "";
     await loadTasks();
   } catch (e: any) {
-    quickError.value = `Error: ${e.message}`;
+    quickError.value = e.response?.data?.detail || e.message;
   } finally {
     addingQuick.value = false;
   }
 }
 
+// ✅ DELETE /api/task/{taskId}
 async function removeTask(task: Task) {
-  if (!uid.value || !confirm(`Delete "${task.name}"?`)) return;
+  if (!confirm(`Delete "${task.name}"?`)) return;
   try {
-    const taskRef = databaseRef(db, `users/${uid.value}/tasks/${task.id}`);
-    await remove(taskRef);
+    if (!accessToken.value) await fetchBackendToken();
+    await axios.delete(`${backendBase}/task/${task.id}`, { // [อ้างอิง: image_e9c51e.png]
+      headers: { Authorization: `Bearer ${accessToken.value}` }
+    });
     await loadTasks();
   } catch (e: any) {
-    pageError.value = `Failed to delete task: ${e.message}`;
+    pageError.value = `Failed to delete task: ${e.response?.data?.detail || e.message}`;
   }
 }
 
+// ✅ PATCH /api/task/{taskId}
 async function toggleDone(task: Task) {
-  if (!uid.value) return;
+  if (!accessToken.value) {
+    try {
+      await fetchBackendToken();
+    } catch (e) {
+      pageError.value = "Authentication error. Cannot update task.";
+      return;
+    }
+  }
+
+  const originalDoneStatus = task.done;
+  task.done = !originalDoneStatus;
+  
   try {
-    const taskRef = databaseRef(db, `users/${uid.value}/tasks/${task.id}`);
-    await update(taskRef, { done: !task.done });
-    const foundTask = tasks.value.find((t) => t.id === task.id);
-    if (foundTask) foundTask.done = !foundTask.done;
+    // [แก้ไข] ส่งแค่ข้อมูลที่เปลี่ยนไปสำหรับ PATCH
+    const partialUpdatePayload = { 
+      done: task.done,
+      status: task.done ? "COMPLETED" : "PENDING" 
+    };
+
+    // [แก้ไข] เปลี่ยนจาก PUT เป็น PATCH
+    await axios.patch(`${backendBase}/task/${task.id}`, partialUpdatePayload, { // [อ้างอิง: image_e9c51e.png]
+      headers: { Authorization: `Bearer ${accessToken.value}` }
+    });
+    
   } catch (e: any) {
-    pageError.value = `Failed to update task status: ${e.message}`;
-    await loadTasks();
+    pageError.value = `Failed to update task status: ${e.response?.data?.detail || e.message}`;
+    task.done = originalDoneStatus; 
   }
 }
 
 // ===============================
 // 🧩 Form Submission
 // ===============================
+// ✅ POST /api/task/ (Add) หรือ PATCH /api/task/{taskId} (Edit)
 async function submit() {
-  if (!uid.value) return;
+  if (!accessToken.value) {
+    try {
+      await fetchBackendToken();
+    } catch (e) {
+      formError.value = "Authentication error. Cannot submit task.";
+      return;
+    }
+  }
+
   submitting.value = true;
   formError.value = "";
 
   try {
-    const tasksRef = databaseRef(db, `users/${uid.value}/tasks`);
+    const headers = { Authorization: `Bearer ${accessToken.value}` };
+
     if (editingId.value) {
-      // Update existing task
-      const taskRef = databaseRef(db, `users/${uid.value}/tasks/${editingId.value}`);
-      await update(taskRef, form.value);
+      // --- EDIT (PATCH) ---
+      // [FIX] สร้าง Payload ที่ส่ง "เฉพาะ field ที่เปลี่ยน"
+      const patchPayload: { [key: string]: any } = {};
+
+      // 1. แปลง form.value (ใหม่) เป็น dateTime (ใช้ null ถ้าว่าง)
+      const newDateTime = form.value.date && form.value.time
+                            ? `${form.value.date}T${form.value.time}:00`
+                            : null;
+      // 2. แปลง originalTaskData (เก่า) เป็น dateTime (ใช้ null ถ้าว่าง)
+      const oldDateTime = originalTaskData.value?.date && originalTaskData.value?.time
+                            ? `${originalTaskData.value.date}T${originalTaskData.value.time}:00`
+                            : null;
+
+      // 3. เปรียบเทียบทีละ field
+      if (form.value.name !== originalTaskData.value?.name) {
+        patchPayload.name = form.value.name;
+      }
+      if (form.value.description !== originalTaskData.value?.description) {
+        patchPayload.description = form.value.description;
+      }
+      if (form.value.time_specified !== originalTaskData.value?.time_specified) {
+        patchPayload.time_specified = form.value.time_specified;
+      }
+      // 4. [FIX] เปรียบเทียบ dateTime ที่แปลงแล้ว
+      if (newDateTime !== oldDateTime) {
+        patchPayload.dateTime = newDateTime; // ส่ง null ถ้าผู้ใช้ลบวันที่
+      }
+      
+      if (Object.keys(patchPayload).length === 0) {
+        console.log("No changes detected, skipping PATCH.");
+      } else {
+        await axios.patch(`${backendBase}/task/${editingId.value}`, patchPayload, { headers }); // [อ้างอิง: image_e9c51e.png]
+      }
+
     } else {
-      // Create new task
-      const newTask = { ...form.value, done: false, createdAt: new Date().toISOString() };
-      await push(tasksRef, newTask);
+      // --- CREATE (POST) ---
+      const newDateTime = form.value.date && form.value.time
+                            ? `${form.value.date}T${form.value.time}:00`
+                            : null;
+      const createPayload = {
+        name: form.value.name,
+        description: form.value.description,
+        time_specified: form.value.time_specified,
+        dateTime: newDateTime,
+        done: false,
+        status: "PENDING"
+      };
+      await axios.post(`${backendBase}/task`, createPayload, { headers }); // [อ้างอิง: image_e9c51e.png]
     }
+
+    // --- Reset ---
     openForm.value = false;
     editingId.value = null;
+    originalTaskData.value = null; // ล้างข้อมูลเก่าที่ "จำ" ไว้
     form.value = {
       name: "",
       description: "",
@@ -482,9 +572,11 @@ async function submit() {
       date: new Date().toISOString().slice(0, 10),
       time: "19:00",
     };
-    await loadTasks();
+    await loadTasks(); // โหลดข้อมูลใหม่
+
   } catch (e: any) {
-    formError.value = `Failed to submit task: ${e.message}`;
+    console.error("❌ Submit failed:", e.response?.data || e.message); // Log error data
+    formError.value = `Failed to submit task: ${e.response?.data?.detail || e.message}`;
   } finally {
     submitting.value = false;
   }
@@ -551,6 +643,7 @@ function closeTaskDetails() {
 function cancelForm() {
   openForm.value = false;
   editingId.value = null;
+  originalTaskData.value = null; // ✅ [เพิ่ม] ล้าง "ความจำ"
   form.value = {
     name: "",
     description: "",
@@ -566,6 +659,7 @@ function editFromPopup(): void {
     closeTaskDetails();
   }
 }
+
 function deleteFromPopup() {
   if (selectedTask.value) {
     removeTask(selectedTask.value);
@@ -574,10 +668,18 @@ function deleteFromPopup() {
 }
 
 function openCreate() {
-  alert("Open create form functionality to be implemented.");
+  editingId.value = null;
+  originalTaskData.value = null; // ✅ [เพิ่ม] ล้าง "ความจำ"
+  form.value = {
+    name: "",
+    description: "",
+    time_specified: true,
+    date: new Date().toISOString().slice(0, 10),
+    time: "19:00",
+  };
+  openForm.value = true;
 }
 
-// ===============================
 // 🚀 Lifecycle
 // ===============================
 onMounted(async () => {

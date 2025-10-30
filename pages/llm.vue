@@ -1560,6 +1560,36 @@ mounted() {
   }
 }
 
+/* Ellipsis version of typing indicator ("...") */
+.message-bubble.loading .typing-indicator {
+  position: relative;
+  align-items: center;
+  min-height: 1em;
+}
+
+/* Hide the dot spans when showing the ellipsis animation */
+.message-bubble.loading .typing-indicator span {
+  display: none;
+}
+
+.message-bubble.loading .typing-indicator::after {
+  content: '...';
+  display: inline-block;
+  color: var(--sage);
+  font-weight: 700;
+  letter-spacing: 2px;
+  width: 0ch;
+  overflow: hidden;
+  animation: ellipsis 1.2s steps(4, end) infinite;
+}
+
+@keyframes ellipsis {
+  0% { width: 0ch; }
+  25% { width: 1ch; }
+  50% { width: 2ch; }
+  75%, 100% { width: 3ch; }
+}
+
 .loading-text {
   color: var(--muted);
   font-style: italic;

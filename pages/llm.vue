@@ -52,21 +52,21 @@
 										</div>
 									</div>
 								</div>
+
+								<!-- ✅ ปุ่มยืนยันเพิ่มซ้ำ -->
+								<div v-if="pendingDuplicate" class="duplicate-confirm">
+									<!-- <p class="duplicate-message">พบรายการซ้ำ ต้องการเพิ่มงานนี้อีกครั้งหรือไม่?</p> -->
+									<div class="duplicate-buttons">
+										<button @click="confirmDuplicate" class="btn-confirm">
+											ยืนยันเพิ่มซ้ำ
+										</button>
+										<button @click="cancelDuplicate" class="btn-cancel">
+											ยกเลิก
+										</button>
+									</div>
+								</div>
 							</div>
 						</div>
-
-					<!-- ✅ ปุ่มยืนยันเพิ่มซ้ำ -->
-					<div v-if="pendingDuplicate" class="duplicate-confirm">
-						<p class="duplicate-message">พบรายการซ้ำ ต้องการเพิ่มงานนี้อีกครั้งหรือไม่?</p>
-						<div class="duplicate-buttons">
-							<button @click="confirmDuplicate" class="btn-confirm">
-								✅ ยืนยันเพิ่มซ้ำ
-							</button>
-							<button @click="cancelDuplicate" class="btn-cancel">
-								❌ ยกเลิก
-							</button>
-						</div>
-					</div>
 
 						<!-- Text Area -->
 						<div class="text-area-container">
@@ -117,6 +117,21 @@ export default {
 computed: {
   canSend() {
     return this.messageText.trim().length > 0;
+  },
+  // Debug computed to check pendingDuplicate
+  debugPendingDuplicate() {
+    console.log("🔍 DEBUG computed: pendingDuplicate =", this.pendingDuplicate);
+    console.log("🔍 DEBUG computed: pendingDuplicate is truthy?", !!this.pendingDuplicate);
+    return this.pendingDuplicate;
+  },
+},
+watch: {
+  pendingDuplicate(newVal, oldVal) {
+    console.log("🔍 DEBUG watcher: pendingDuplicate changed");
+    console.log("🔍 DEBUG watcher: old value =", oldVal);
+    console.log("🔍 DEBUG watcher: new value =", newVal);
+    console.log("🔍 DEBUG watcher: new value is truthy?", !!newVal);
+    console.log("🔍 DEBUG watcher: new value type =", typeof newVal);
   },
 },
 methods: {
@@ -236,7 +251,40 @@ methods: {
               content: "พบรายการนี้อยู่แล้ว ต้องการเพิ่มซ้ำไหมครับ?",
             });
             // เก็บไว้ให้ปุ่ม confirmDuplicate ใช้
-            this.pendingDuplicate = item.output.find(t => t.id === "-1");
+            console.log("🔍 DEBUG: CHECK intent - item.output:", item.output);
+            console.log("🔍 DEBUG: CHECK intent - item.output length:", item.output?.length);
+            // Log each task in output to see structure
+            if (item.output && item.output.length > 0) {
+              item.output.forEach((task, index) => {
+                console.log(`🔍 DEBUG: CHECK intent - item.output[${index}]:`, task);
+                console.log(`🔍 DEBUG: CHECK intent - item.output[${index}].id:`, task.id);
+                console.log(`🔍 DEBUG: CHECK intent - item.output[${index}].id type:`, typeof task.id);
+                console.log(`🔍 DEBUG: CHECK intent - item.output[${index}].id === "-1":`, task.id === "-1");
+                console.log(`🔍 DEBUG: CHECK intent - item.output[${index}].id == "-1":`, task.id == "-1");
+                console.log(`🔍 DEBUG: CHECK intent - String(item.output[${index}].id):`, String(task.id));
+              });
+            }
+            // Try multiple ways to find duplicate
+            const duplicateTask = item.output.find(t => {
+              // Try exact match
+              if (t.id === "-1") return true;
+              // Try string conversion
+              if (String(t.id) === "-1") return true;
+              // Try number comparison
+              if (Number(t.id) === -1) return true;
+              return false;
+            });
+            console.log("🔍 DEBUG: CHECK intent - duplicateTask found:", duplicateTask);
+            // If still not found, use the first item in output if it exists
+            if (!duplicateTask && item.output && item.output.length > 0) {
+              console.log("🔍 DEBUG: CHECK intent - No task with id='-1' found, using first item in output");
+              this.pendingDuplicate = item.output[0];
+            } else {
+              this.pendingDuplicate = duplicateTask;
+            }
+            console.log("🔍 DEBUG: CHECK intent - pendingDuplicate set to:", this.pendingDuplicate);
+            console.log("🔍 DEBUG: CHECK intent - typeof pendingDuplicate:", typeof this.pendingDuplicate);
+            console.log("🔍 DEBUG: CHECK intent - pendingDuplicate is truthy?", !!this.pendingDuplicate);
           } else {
             this.messages.push({
               role: "assistant",
@@ -541,11 +589,33 @@ methods: {
 
 },
 mounted() {
+  console.log("🔍 DEBUG mounted: Component mounted, pendingDuplicate =", this.pendingDuplicate);
   this.fetchBackendToken()
     .then(() => {
       console.log("✅ Token ready on mount:", this.token);
     })
     .catch(err => console.error("❌ Token load failed on mount:", err));
+},
+updated() {
+  console.log("🔍 DEBUG updated: Component updated, pendingDuplicate =", this.pendingDuplicate);
+  console.log("🔍 DEBUG updated: pendingDuplicate is truthy?", !!this.pendingDuplicate);
+  // Check if duplicate-confirm element exists in DOM
+  this.$nextTick(() => {
+    const confirmDiv = document.querySelector('.duplicate-confirm');
+    const buttonsDiv = document.querySelector('.duplicate-buttons');
+    const confirmBtn = document.querySelector('.btn-confirm');
+    const cancelBtn = document.querySelector('.btn-cancel');
+    console.log("🔍 DEBUG updated (nextTick): .duplicate-confirm exists?", !!confirmDiv);
+    console.log("🔍 DEBUG updated (nextTick): .duplicate-buttons exists?", !!buttonsDiv);
+    console.log("🔍 DEBUG updated (nextTick): .btn-confirm exists?", !!confirmBtn);
+    console.log("🔍 DEBUG updated (nextTick): .btn-cancel exists?", !!cancelBtn);
+    if (confirmDiv) {
+      console.log("🔍 DEBUG updated: .duplicate-confirm styles:", window.getComputedStyle(confirmDiv));
+      console.log("🔍 DEBUG updated: .duplicate-confirm display:", window.getComputedStyle(confirmDiv).display);
+      console.log("🔍 DEBUG updated: .duplicate-confirm visibility:", window.getComputedStyle(confirmDiv).visibility);
+      console.log("🔍 DEBUG updated: .duplicate-confirm opacity:", window.getComputedStyle(confirmDiv).opacity);
+    }
+  });
 },
 }
 </script>
@@ -1277,10 +1347,10 @@ mounted() {
 /* Duplicate Confirm Buttons */
 .duplicate-confirm {
   text-align: center;
-  margin: 16px 0;
+  margin: 0;
   padding: 16px;
-  background: #FFF9E6;
-  border: 2px solid #FFE082;
+  background: none;
+  border: none;
   border-radius: 12px;
 }
 

@@ -484,8 +484,32 @@ methods: {
         }), 
       });
       console.log("🔍 DEBUG: confirmDuplicate response status:", res.status);
-      const data = await res.json();
+      
+      // Check if response is JSON before parsing
+      const contentType = res.headers.get("content-type");
+      let data;
+      
+      if (contentType && contentType.includes("application/json")) {
+        try {
+          data = await res.json();
+        } catch (jsonError) {
+          // If JSON parsing fails, get text instead
+          const text = await res.text();
+          console.error("🔍 DEBUG: Failed to parse JSON, response text:", text);
+          throw new Error(`Failed to parse response: ${text}`);
+        }
+      } else {
+        // If not JSON, get text response
+        const text = await res.text();
+        console.log("🔍 DEBUG: Non-JSON response:", text);
+        if (res.status === 401) {
+          throw new Error("Unauthorized: Authentication failed. Please check your token.");
+        }
+        throw new Error(`Server returned ${res.status}: ${text}`);
+      }
+      
       console.log("🔍 DEBUG: confirmDuplicate response data:", data);
+      
       if (res.ok && !data.error) {
         this.messages.push({
           role: "assistant",

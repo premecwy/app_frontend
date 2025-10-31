@@ -367,6 +367,7 @@ const sortedTasks = computed(() => {
 
 // Removed duplicate fetchBackendToken function
 import axios from "axios";
+
 const backendBase = "https://lumaai-backend-672244117841.asia-southeast1.run.app/api" ;
 
 const accessToken = ref<string | null>(null);

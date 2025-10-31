@@ -459,13 +459,15 @@ methods: {
     if (!this.pendingDuplicate) return;
     const task = this.pendingDuplicate;
     this.pendingDuplicate = null;
+    const display = task.name + " " + (task.description || "") + " " + (task.dueDate || "") + " " + (task.dueTime || "");
     this.messages.push({
       role: "assistant",
-      content: `กำลังเพิ่มงาน "${task.name || 'รายการใหม่'}" ...`,
+      content: `กำลังเพิ่มงาน ตามข้อมูล ${display || 'รายการใหม่'}`,
     });
 
     try {
-      const targetUrl = "https://lumaai-backend-672244117841.asia-southeast1.run.app/api/task/my-tasks";
+      const targetUrl = "https://lumaai-backend-672244117841.asia-southeast1.run.app/api/task/";
+  
       const res = await fetch(targetUrl, {
         method: "POST",
         headers: {
@@ -473,10 +475,17 @@ methods: {
           "Authorization": `Bearer ${this.token}`,
         },
         body: JSON.stringify({
-          tasks: [task]
-        }), // ส่งเป็น Array ตามที่ backend ดูเหมือนจะต้องการ
+          name: task.name,
+          description: task.description || "",
+          dueDate: task.dueDate || "",
+          dueTime: task.dueTime || "",
+          priority: 0,
+          category: 0
+        }), 
       });
+      console.log("🔍 DEBUG: confirmDuplicate response status:", res.status);
       const data = await res.json();
+      console.log("🔍 DEBUG: confirmDuplicate response data:", data);
       if (res.ok && !data.error) {
         this.messages.push({
           role: "assistant",
@@ -491,12 +500,12 @@ methods: {
     } catch (err) {
       this.messages.push({
         role: "assistant",
-        content: "❌ เกิดข้อผิดพลาดในการเพิ่มงานซ้ำ",
+        content: "❌ เกิดข้อผิดพลาดในการเพิ่มงานซ้ำ: " + String(err),
       });
     }
     this.$nextTick(() => this.scrollToBottom());
   },
-
+  
   // 🔴 เมื่อผู้ใช้กด "ยกเลิกเพิ่มซ้ำ"
   cancelDuplicate() {
     this.messages.push({
@@ -506,9 +515,7 @@ methods: {
     this.pendingDuplicate = null;
     this.$nextTick(() => this.scrollToBottom());
   },
-
   // --- API & Utilities ---
-
   async callApi(q) {
     this.persist();
     try {

@@ -421,7 +421,7 @@ methods: {
           //ดัก keyword
           const keywordGroups = [
             { keys: ["เพิ่ม", "เพิ่มงาน"], hint: 'กรุณาพูด"เพิ่ม"ตามด้วยงานที่อยากเพิ่ม เช่น "เพิ่มงานประชุม"' },
-            { keys: ["หา", "ค้นหา"], hint: 'กรุณาพูด"ค้นหา"ตามด้วยสิ่งที่อยากค้นหา เช่น "หาข้อมูลโปรเจกต์ AI"' },
+            { keys: ["หา", "ค้นหา","หาข้อมูล","ค้นหาข้อมูล",], hint: 'กรุณาพูด"ค้นหา"ตามด้วยสิ่งที่อยากค้นหา เช่น "หาข้อมูลโปรเจกต์ AI"' },
             { keys: ["แพลน", "วางแผน"], hint: 'กรุณาพูด"วางแผน"ต่อด้วยแพลนที่อยากจัด เช่น "แพลนเที่ยวปีใหม่"' },
             { keys: ["ลบ", "ลบงาน"], hint: 'กรุณาพูด"ลบ"ต่อด้วยงานที่อยากลบ เช่น "ลบงานประชุมตอนเช้า"' },
             { keys: ["ตรวจสอบ", "เช็ค"], hint: 'กรุณาพูด"ตรวจสอบ"ต่อด้วยงานที่อยากตรวจสอบ เช่น "ตรวจสอบงานที่ยังไม่เสร็จ"' },
@@ -444,6 +444,30 @@ methods: {
                   return;
                 }
               }
+            }
+          }
+          const text = recognizedText.trim();
+          if (this.pendingDuplicate){
+            if (text === "ใช่" || text === "ได้เลย" || text === "ตกลง"){
+              this.playTTS("รับทราบครับ กำลังเพิ่มงานให้เลยครับ");
+              await this.confirmDuplicate(); 
+              this.pendingDuplicate = null;  
+              return;
+            } 
+            else if (text === "ไม่" || text === "ไม่ใช่" || text === "ยกเลิก"){
+              this.playTTS("โอเคครับ ยกเลิกการเพิ่มงานนี้แล้วครับ");
+              await this.cancelDuplicate(); 
+              this.pendingDuplicate = null;
+              return;
+            }
+            else{
+            this.messages.push({
+              role: "assistant",
+              content: "⚠️ กรุณาตอบว่า 'ใช่' เพื่อยืนยันเพิ่มซ้ำ หรือ 'ไม่' เพื่อยกเลิกครับ",
+            });
+            this.$nextTick(() => this.scrollToBottom());
+            this.playTTS("กรุณาตอบว่า 'ใช่' เพื่อยืนยันเพิ่มซ้ำ หรือ 'ไม่' เพื่อยกเลิกครับ");
+            return;
             }
           }
 
@@ -680,6 +704,11 @@ mounted() {
   this.fetchBackendToken()
     .then(() => {
       console.log("✅ Token ready on mount:", this.token);
+      const greeted = sessionStorage.getItem("tts_greeted");
+      if (!greeted) {
+        this.playTTS("สวัสดีค่ะ กรุณาพูดเพิ่ม,ลบ,แก้ไข,ตรวจสอบ,กรอกฟอร์ม,แพลนงาน หรือหาข้อมูล ตามด้วยเนื้อหาได้เลยค่ะ");
+        sessionStorage.setItem("tts_greeted", "1");
+      }
     })
     .catch(err => console.error("❌ Token load failed on mount:", err));
 },

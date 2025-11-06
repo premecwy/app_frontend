@@ -120,13 +120,32 @@ async function loginGoogle() {
     localStorage.setItem("firebase_token", firebaseToken.value);
     
     // ✅ ส่งไป backend แลก access/refresh token
-    const res = await fetch("https://luma-model-local.bkkz.org/api/auth/login-google", {
-      method: "POST",
-      headers: { "Content-Type": "application/json"},
-      body: JSON.stringify({ "idToken": firebaseToken.value }),
-    });
-    if (!res.ok) throw new Error("Backend login failed");
-    const data = await res.json();
+    let res;
+    try {
+      res = await fetch("https://luma-model-local.bkkz.org/api/auth/login-google", {
+        method: "POST",
+        headers: { "Content-Type": "application/json"},
+        body: JSON.stringify({ "idToken": firebaseToken.value }),
+      });
+    } catch (fetchError) {
+      // Network error (server unreachable, CORS, etc.)
+      console.error("❌ Network error during login:", fetchError);
+      throw new Error(`ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้: ${fetchError.message || 'Server unreachable'}`);
+    }
+
+    if (!res.ok) {
+      const errorText = await res.text().catch(() => 'Unknown error');
+      console.error("❌ Backend login HTTP error:", res.status, errorText);
+      throw new Error(`เข้าสู่ระบบล้มเหลว (${res.status}): ${errorText || 'Server error'}`);
+    }
+
+    let data;
+    try {
+      data = await res.json();
+    } catch (jsonError) {
+      console.error("❌ Failed to parse login response:", jsonError);
+      throw new Error("ไม่สามารถอ่านข้อมูลการตอบกลับจากเซิร์ฟเวอร์ได้");
+    }
 
     accessToken.value = data.access_token;
     refreshToken.value = data.refresh_token;
@@ -140,16 +159,10 @@ async function loginGoogle() {
     console.log("✅ Saved tokens to localStorage");
   } catch (err) {
     console.error("❌ Login failed:", err);
-
-    // ✅ เพิ่ม log ลึกขึ้น ถ้ามี response จาก backend
-    if (err.response) {
-      try {
-        const text = await err.response.text();
-        console.error("🔍 Backend Response:", text);
-      } catch (e) {
-        console.error("⚠️ Failed to read backend response:", e);
-      }
-    }
+    
+    // Show user-friendly error message
+    const errorMessage = err.message || err.toString() || "เกิดข้อผิดพลาดในการเข้าสู่ระบบ";
+    alert(`⚠️ ${errorMessage}\n\nกรุณาตรวจสอบ:\n- การเชื่อมต่ออินเทอร์เน็ต\n- เซิร์ฟเวอร์อาจจะไม่พร้อมใช้งานชั่วคราว\n- กรุณาลองอีกครั้งในภายหลัง`);
   }
 }
 

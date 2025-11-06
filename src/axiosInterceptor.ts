@@ -1,98 +1,82 @@
 // src/axiosInterceptor.ts
 import axios from "axios";
 
+// ตั้งค่ากลาง
 axios.defaults.baseURL = "https://lumaai-backend-672244117841.asia-southeast1.run.app/api";
 axios.defaults.timeout = 15000;
 
-// ===== ตัวแปรควบคุม refresh token =====
-let isRefreshing = false;
-let failedQueue: Array<{ resolve: (token?: string) => void; reject: (err?: any) => void }> = [];
+// ใช้ flag กันการ refresh ซ้ำซ้อน
+let isRetrying = false;
 
-const processQueue = (error: any, token: string | null = null) => {
-  failedQueue.forEach((prom) => {
-    if (error) prom.reject(error);
-    else prom.resolve(token || "");
-  });
-  failedQueue = [];
-};
-
-// ===== Request Interceptor =====
+// 🟩 Request Interceptor — ก่อนยิง request
 axios.interceptors.request.use(
   (config) => {
     console.log("🚦 ผ่านตัวกลางก่อนยิงจริง:", config.method?.toUpperCase(), config.url);
+
     const token = localStorage.getItem("access_token");
     if (token) {
       config.headers = config.headers || {};
       config.headers.Authorization = `Bearer ${token}`;
     }
+
     config.headers["X-App-Source"] = "LumaAI-Frontend";
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => {
+    console.error("❌ [Global Request Error]:", error);
+    return Promise.reject(error);
+  }
 );
 
-// ===== Response Interceptor =====
+// 🟥 Response Interceptor — หลังยิง request
 axios.interceptors.response.use(
   (response) => {
     console.log("✅ [Global Response]:", response.config.url);
     return response;
   },
   async (error) => {
+    console.error("❌ [Global Response Error]:", error.response?.status, error.message);
+
     const originalRequest = error.config;
 
-    // ✅ ถ้าเจอ 401 → ลอง refresh token
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      if (isRefreshing) {
-        // 🔁 ถ้ามี refresh อยู่แล้ว → รอผล refresh ก่อน
-        return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject });
-        })
-          .then((token) => {
-            originalRequest.headers["Authorization"] = "Bearer " + token;
-            return axios(originalRequest); // ยิงซ้ำหลัง refresh เสร็จ
-          })
-          .catch((err) => Promise.reject(err));
-      }
-
-      originalRequest._retry = true;
-      isRefreshing = true;
-
-      try {
-        const refreshToken = localStorage.getItem("refresh_token");
-        if (!refreshToken) throw new Error("ไม่มี refresh token");
-
+    // ถ้า 401 และยังไม่ได้ retry
+    if (error.response?.status === 401 && !isRetrying) {
+      const refreshToken = localStorage.getItem("refresh_token");
+      if (refreshToken) {
+        isRetrying = true;
         console.log("🔄 [Interceptor] Refreshing token...");
-        const res = await axios.post("/auth/token", {
-          grantType: "refresh_token",
-          refreshToken: refreshToken,
-        });
 
-        if (res.status === 200 && res.data.access_token) {
-          const newToken = res.data.access_token;
-          localStorage.setItem("access_token", newToken);
-          console.log("✅ [Interceptor] Token refreshed!");
-          processQueue(null, newToken);
+        try {
+          const res = await axios.post("/auth/token", {
+            grantType: "refresh_token",
+            refreshToken: refreshToken,
+          });
 
-          // ใส่ token ใหม่แล้วยิงซ้ำ
-          originalRequest.headers["Authorization"] = `Bearer ${newToken}`;
-          return axios(originalRequest);
-        } else {
-          throw new Error("Refresh failed");
+          console.log("🔄 [Interceptor] Refresh response:", res.status, res.data);
+
+          if (res.status === 200 && res.data.access_token) {
+            const newToken = res.data.access_token;
+            localStorage.setItem("access_token", newToken);
+            console.log("✅ [Interceptor] Token refreshed!");
+
+            // ใส่ token ใหม่แล้วยิงซ้ำ
+            originalRequest.headers.Authorization = `Bearer ${newToken}`;
+            isRetrying = false;
+            return axios(originalRequest);
+          } else {
+            throw new Error("Refresh failed");
+          }
+        } catch (err) {
+          console.error("❌ [Interceptor] Refresh token error:", err);
+          localStorage.removeItem("access_token");
+          localStorage.removeItem("refresh_token");
+          window.location.href = "../pages/user"; // ไปหน้า login ใหม่
         }
-      } catch (err) {
-        console.error("❌ [Interceptor] Refresh token error:", err);
-        processQueue(err, null);
-        localStorage.removeItem("access_token");
-        localStorage.removeItem("refresh_token");
-        window.location.href = "../pages/user";
-      } finally {
-        isRefreshing = false;
       }
     }
-
-    // ถ้า refresh แล้วก็ยัง 401 อีก
-    if (error.response?.status === 401 && originalRequest._retry) {
-      console.warn("🚨 [Interceptor] 401 ซ้ำสองครั้ง — บังคับ login ใหม่");
+    // ถ้าเจอ 401 อีกครั้งขณะกำลัง retry → บังคับ logout ทันที
+    else if (error.response?.status === 401 && isRetrying) {
+      console.warn("🚨 [Interceptor] 401 ซ้ำสองครั้ง — บังคับให้ login ใหม่");
       localStorage.removeItem("access_token");
       localStorage.removeItem("refresh_token");
       window.location.href = "../pages/user";

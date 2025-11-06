@@ -165,10 +165,10 @@ methods: {
         const res = await axios.get("https://luma-model-local.bkkz.org/api/auth/token", {
           timeout: 60000 // 60 seconds
         });
-        const token = res.data?.access_token;
+      const token = res.data?.access_token;
         if (token) {
-          this.token = token;
-          localStorage.setItem('chat_token', token);
+      this.token = token;
+      localStorage.setItem('chat_token', token);
           console.log("✅ New access token loaded:", token.slice(0, 20) + "...");
         }
       } catch (fetchError) {
@@ -182,7 +182,7 @@ methods: {
     } catch (e) {
       // Only log if we don't have a fallback token
       if (!localStorage.getItem('chat_token')) {
-        console.error("❌ Failed to fetch access token:", e);
+      console.error("❌ Failed to fetch access token:", e);
       }
     }
   },
@@ -433,23 +433,49 @@ methods: {
           type: "audio/wav"
         });
         chunks = [];
-        if (audioBlob.size === 0) return;
+        
+        console.log("🔍 Audio blob size:", audioBlob.size, "bytes");
+        
+        if (audioBlob.size === 0) {
+          console.warn("⚠️ Audio blob is empty - no audio recorded");
+          this.messages.push({
+            role: "assistant",
+            content: "⚠️ ไม่สามารถบันทึกเสียงได้ กรุณาลองอีกครั้ง",
+          });
+          this.$nextTick(() => this.scrollToBottom());
+          this.playTTS("ไม่สามารถบันทึกเสียงได้ กรุณาลองอีกครั้ง");
+          return;
+        }
+        
+        // Check if audio is too small (might be just silence)
+        if (audioBlob.size < 1000) {
+          console.warn("⚠️ Audio blob too small:", audioBlob.size, "bytes - might be silence");
+        }
 
         const formData = new FormData();
         formData.append("file", audioBlob, "audio.wav");
 
         try {
           // 🧠 1️⃣ ส่งไฟล์เสียงไป /stt เพื่อแปลงเสียงเป็นข้อความ
+          console.log("🔍 Sending audio to STT, size:", audioBlob.size, "bytes");
+          
           let sttRes;
           try {
             sttRes = await fetch("https://luma-model-local.bkkz.org/stt", {
-              method: "POST",
-              body: formData,
-            });
+            method: "POST",
+            body: formData,
+          });
+            console.log("🔍 STT Response status:", sttRes.status, sttRes.statusText);
           } catch (fetchError) {
             // Network error (server unreachable, CORS, etc.)
             console.error("❌ STT Network Error:", fetchError);
-            throw new Error(`ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์แปลงเสียงได้: ${fetchError.message || 'Server unreachable'}`);
+            this.messages.push({
+              role: "assistant",
+              content: "⚠️ ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์แปลงเสียงได้ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต",
+            });
+            this.$nextTick(() => this.scrollToBottom());
+            this.playTTS("ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์แปลงเสียงได้");
+            return; // Stop here, don't continue to LLM
           }
 
           // Check content-type first to determine how to parse
@@ -502,14 +528,46 @@ methods: {
             return;
           }
 
-          const recognizedText = sttData?.text?.trim();
+          // Extract text from STT response (handle different response formats)
+          let recognizedText = '';
+          
+          // Try different possible fields in the response
+          if (sttData?.text) {
+            recognizedText = sttData.text.trim();
+          } else if (sttData?.transcript) {
+            recognizedText = sttData.transcript.trim();
+          } else if (sttData?.message) {
+            recognizedText = sttData.message.trim();
+          } else if (typeof sttData === 'string') {
+            recognizedText = sttData.trim();
+          } else if (sttData?.result) {
+            recognizedText = sttData.result.trim();
+          }
+          
+          console.log("🔍 STT Response:", sttData);
+          console.log("🔍 Recognized Text:", recognizedText);
+          console.log("🔍 Text Length:", recognizedText?.length);
 
-          if (!recognizedText) {
+          if (!recognizedText || recognizedText.length === 0) {
+            console.warn("⚠️ STT returned empty text");
             this.messages.push({
               role: "assistant",
               content: "😅 ฟังไม่ชัดเลย ลองพูดใหม่อีกทีนะครับ",
             });
             this.$nextTick(() => this.scrollToBottom());
+            this.playTTS("ฟังไม่ชัดเลย ลองพูดใหม่อีกทีนะครับ");
+            return;
+          }
+          
+          // Check if text is too short (might be noise or error)
+          if (recognizedText.length < 2) {
+            console.warn("⚠️ STT returned text too short:", recognizedText);
+            this.messages.push({
+              role: "assistant",
+              content: "😅 ฟังไม่ชัดเลย ลองพูดใหม่อีกทีนะครับ",
+            });
+            this.$nextTick(() => this.scrollToBottom());
+            this.playTTS("ฟังไม่ชัดเลย ลองพูดใหม่อีกทีนะครับ");
             return;
           }
 
@@ -616,17 +674,17 @@ methods: {
           let llmRes;
           try {
             llmRes = await fetch(
-              "https://lumaai-backend-672244117841.asia-southeast1.run.app/api/llm/", {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  "Authorization": `Bearer ${this.token}`,
-                },
-                body: JSON.stringify({
-                  text: recognizedText
-                }),
-              }
-            );
+            "https://lumaai-backend-672244117841.asia-southeast1.run.app/api/llm/", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${this.token}`,
+              },
+              body: JSON.stringify({
+                text: recognizedText
+              }),
+            }
+          );
           } catch (fetchError) {
             // Network error (server unreachable, CORS, etc.)
             console.error("❌ LLM Network Error:", fetchError);
@@ -656,11 +714,11 @@ methods: {
                 console.error("❌ LLM 401 Error: Could not read error response", e);
               }
 
-              this.messages.push({
-                role: "assistant",
+          this.messages.push({
+            role: "assistant",
                 content: "⚠️ หมดอายุการเข้าสู่ระบบ กรุณาเข้าสู่ระบบใหม่",
-              });
-              this.$nextTick(() => this.scrollToBottom());
+          });
+          this.$nextTick(() => this.scrollToBottom());
               
               // Try to refresh token
               try {
@@ -787,9 +845,12 @@ methods: {
                     role: "assistant",
                     content: "🧾 งานที่ตรวจพบ:",
                   });
-                  ttsMessages.push("งานที่ตรวจพบ:");
                   
-                  // Show existing tasks
+                  // Track unique task names for TTS to avoid duplicates
+                  const seenTaskNames = new Set();
+                  const uniqueTaskTexts = [];
+                  
+                  // Show all existing tasks in chat
                   item.output.forEach(task => {
                     if (task.id !== "-1") {
                       const taskText = task.title || task.name || JSON.stringify(task);
@@ -797,12 +858,27 @@ methods: {
                         role: "assistant",
                         content: `• ${taskText}`,
                       });
-                      ttsMessages.push(taskText);
+                      
+                      // Only add unique task names to TTS
+                      if (!seenTaskNames.has(taskText)) {
+                        seenTaskNames.add(taskText);
+                        uniqueTaskTexts.push(taskText);
+                      }
                     }
                   });
                   
-                  // Ask for confirmation clearly
-                  const confirmMessage = "พบรายการนี้อยู่แล้ว ต้องการเพิ่มซ้ำไหมครับ? กรุณาตอบว่า 'ใช่' เพื่อยืนยัน หรือ 'ไม่' เพื่อยกเลิก";
+                  // Add unique tasks to TTS (similar to chat)
+                  if (uniqueTaskTexts.length > 0) {
+                    ttsMessages.push("งานที่ตรวจพบ");
+                    uniqueTaskTexts.forEach(taskText => {
+                      ttsMessages.push(taskText);
+                    });
+                  }
+                  
+                  // Use confirmation message from response.result if available, otherwise use default
+                  const confirmMessage = response.result || 
+                                       item.message ||
+                                       "พบรายการนี้อยู่แล้ว ต้องการเพิ่มซ้ำไหมครับ? กรุณาตอบว่า 'ใช่' เพื่อยืนยัน หรือ 'ไม่' เพื่อยกเลิก";
                   this.messages.push({
                     role: "assistant",
                     content: confirmMessage,
@@ -815,7 +891,18 @@ methods: {
                   // Play TTS and return early - don't process other intents
                   if (ttsMessages.length > 0) {
                     this.$nextTick(() => this.scrollToBottom());
-                    const combinedText = ttsMessages.join(". ");
+                    // Remove duplicates from TTS messages
+                    const uniqueMessages = [];
+                    const seenInTTS = new Set();
+                    ttsMessages.forEach(msg => {
+                      const trimmed = msg.trim();
+                      if (trimmed && !seenInTTS.has(trimmed)) {
+                        seenInTTS.add(trimmed);
+                        uniqueMessages.push(trimmed);
+                      }
+                    });
+                    const combinedText = uniqueMessages.join(". ");
+                    console.log("🔊 Final TTS text (duplicate check):", combinedText);
                     this.playTTS(combinedText);
                   }
                   return; // Stop processing - wait for user confirmation
@@ -825,16 +912,33 @@ methods: {
                     role: "assistant",
                     content: "🧾 งานที่ตรวจพบ:",
                   });
-                  ttsMessages.push("งานที่ตรวจพบ:");
                   
+                  // Track unique task names for TTS to avoid duplicates
+                  const seenTaskNames = new Set();
+                  const uniqueTaskTexts = [];
+                  
+                  // Show all tasks in chat
                   item.output.forEach(task => {
                     const taskText = task.title || task.name || JSON.stringify(task);
                     this.messages.push({
                       role: "assistant",
                       content: `• ${taskText}`,
                     });
-                    ttsMessages.push(taskText);
+                    
+                    // Only add unique task names to TTS
+                    if (!seenTaskNames.has(taskText)) {
+                      seenTaskNames.add(taskText);
+                      uniqueTaskTexts.push(taskText);
+                    }
                   });
+                  
+                  // Add unique tasks to TTS (similar to chat)
+                  if (uniqueTaskTexts.length > 0) {
+                    ttsMessages.push("งานที่ตรวจพบ");
+                    uniqueTaskTexts.forEach(taskText => {
+                      ttsMessages.push(taskText);
+                    });
+                  }
                 }
               } else {
                 const msg = "ตรวจสอบแล้ว ไม่พบบันทึกที่เกี่ยวข้องครับ ✅";
@@ -883,11 +987,34 @@ methods: {
             }
           }
 
+          // Add response.result to TTS if it exists and hasn't been added yet
+          // (response.result might contain a summary or confirmation message)
+          if (response.result && response.result.trim()) {
+            const resultText = response.result.trim();
+            // Check if it's already in ttsMessages (might have been added as confirmMessage)
+            const alreadyIncluded = ttsMessages.some(msg => msg.includes(resultText) || resultText.includes(msg));
+            if (!alreadyIncluded) {
+              // Add at the beginning to provide context
+              ttsMessages.unshift(resultText);
+              console.log("🔊 Added response.result to TTS:", resultText);
+            }
+          }
+
           // Play TTS for all collected messages (same as what's shown in chat)
           if (ttsMessages.length > 0) {
             this.$nextTick(() => this.scrollToBottom());
-            // Combine all messages with pauses for natural speech
-            const combinedText = ttsMessages.join(". ");
+            // Remove duplicates from TTS messages and combine with pauses
+            const uniqueMessages = [];
+            const seenInTTS = new Set();
+            ttsMessages.forEach(msg => {
+              const trimmed = msg.trim();
+              if (trimmed && !seenInTTS.has(trimmed)) {
+                seenInTTS.add(trimmed);
+                uniqueMessages.push(trimmed);
+              }
+            });
+            const combinedText = uniqueMessages.join(". ");
+            console.log("🔊 Final TTS text:", combinedText);
             this.playTTS(combinedText);
           }
 

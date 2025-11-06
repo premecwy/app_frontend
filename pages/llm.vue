@@ -607,31 +607,64 @@ methods: {
               }
             }
           }
-          const text = recognizedText.trim().toLowerCase();
+          // Normalize text: remove punctuation, extra spaces, and convert to lowercase
+          const text = recognizedText
+            .trim()
+            .toLowerCase()
+            .replace(/[.,!?;:]/g, '') // Remove punctuation
+            .replace(/\s+/g, ' ') // Normalize spaces
+            .trim();
+          
+          console.log("🔍 Normalized recognized text:", text);
+          console.log("🔍 Original recognized text:", recognizedText);
           
           // Check if user is confirming duplicate task
+          console.log("🔍 BEFORE duplicate check - pendingDuplicate:", this.pendingDuplicate);
+          console.log("🔍 BEFORE duplicate check - pendingDuplicate type:", typeof this.pendingDuplicate);
+          console.log("🔍 BEFORE duplicate check - pendingDuplicate is truthy?", !!this.pendingDuplicate);
+          
           if (this.pendingDuplicate){
+            console.log("🔍 Checking duplicate confirmation for text:", text);
+            console.log("🔍 pendingDuplicate exists:", !!this.pendingDuplicate);
+            
             // Check for affirmative responses (yes, confirm, add duplicate)
             const affirmativeKeywords = [
               "ใช่", "ได้", "ได้เลย", "ตกลง", "ยืนยัน", "เพิ่ม", "เพิ่มซ้ำ", 
-              "โอเค", "ok", "yes", "yeah", "confirm", "add"
+              "โอเค", "ok", "yes", "yeah", "confirm", "add", "ยืนยันครับ", "ยืนยันค่ะ"
             ];
             
             // Check for negative responses (no, cancel, don't add)
             const negativeKeywords = [
               "ไม่", "ไม่ใช่", "ไม่ต้อง", "ยกเลิก", "ไม่เพิ่ม", "ไม่เพิ่มซ้ำ",
-              "no", "cancel", "skip", "ไม่เอา"
+              "no", "cancel", "skip", "ไม่เอา", "ไม่ครับ", "ไม่ค่ะ"
             ];
             
-            // Check if text contains affirmative keywords
-            const isAffirmative = affirmativeKeywords.some(keyword => 
-              text.includes(keyword.toLowerCase())
-            );
+            // Check if text contains affirmative keywords (more robust matching)
+            let isAffirmative = false;
+            let matchedKeyword = null;
+            for (const keyword of affirmativeKeywords) {
+              const keywordLower = keyword.toLowerCase();
+              // Try exact match first, then contains
+              if (text === keywordLower || text.includes(keywordLower)) {
+                isAffirmative = true;
+                matchedKeyword = keyword;
+                console.log("✅ Matched affirmative keyword:", keyword);
+                break;
+              }
+            }
             
             // Check if text contains negative keywords
-            const isNegative = negativeKeywords.some(keyword => 
-              text.includes(keyword.toLowerCase())
-            );
+            let isNegative = false;
+            for (const keyword of negativeKeywords) {
+              const keywordLower = keyword.toLowerCase();
+              if (text === keywordLower || text.includes(keywordLower)) {
+                isNegative = true;
+                console.log("✅ Matched negative keyword:", keyword);
+                break;
+              }
+            }
+            
+            console.log("🔍 isAffirmative:", isAffirmative, "isNegative:", isNegative);
             
             if (isAffirmative && !isNegative) {
               // User confirmed - add duplicate
@@ -802,6 +835,27 @@ methods: {
           }
 
           console.log("🔊 Voice Mode: Response structure:", response);
+          console.log("🔊 Voice Mode: Results array:", response.results);
+          console.log("🔊 Voice Mode: Results length:", response.results?.length);
+          console.log("🔊 Voice Mode: Response result:", response.result);
+          
+          // Check if response.result indicates a duplicate confirmation is needed
+          // (even if results array structure is different)
+          const needsConfirmation = response.result && (
+            response.result.includes("ยืนยัน") || 
+            response.result.includes("เพิ่มซ้ำ") ||
+            response.result.includes("มีงานอยู่แล้ว")
+          );
+          
+          if (response.results && response.results.length > 0) {
+            response.results.forEach((item, idx) => {
+              console.log(`🔊 Result[${idx}]:`, item);
+              console.log(`🔊 Result[${idx}] intent:`, item.intent);
+              if (item.intent === "CHECK") {
+                console.log(`🔊 Result[${idx}] CHECK output:`, item.output);
+              }
+            });
+          }
 
           // Handle simple response (no results array)
           if (!response.results || response.results.length === 0) {
@@ -830,6 +884,7 @@ methods: {
             }
 
             if (item.intent === "CHECK") {
+              console.log("🔍 CHECK intent found, output length:", item.output?.length);
               if (item.output?.length > 0) {
                 // Check if there's a duplicate (task with id = "-1")
                 const duplicateTask = item.output.find(t => {
@@ -838,6 +893,9 @@ methods: {
                   if (Number(t.id) === -1) return true;
                   return false;
                 });
+
+                console.log("🔍 Duplicate task found:", duplicateTask);
+                console.log("🔍 All tasks in output:", item.output);
 
                 // If duplicate found, ask for confirmation
                 if (duplicateTask) {
@@ -887,6 +945,9 @@ methods: {
                   
                   // Set pending duplicate and stop processing other intents
                   this.pendingDuplicate = duplicateTask || (item.output && item.output.length > 0 ? item.output[0] : null);
+                  console.log("🔍 SET pendingDuplicate to:", this.pendingDuplicate);
+                  console.log("🔍 pendingDuplicate type:", typeof this.pendingDuplicate);
+                  console.log("🔍 pendingDuplicate is truthy?", !!this.pendingDuplicate);
                   
                   // Play TTS and return early - don't process other intents
                   if (ttsMessages.length > 0) {
@@ -984,6 +1045,30 @@ methods: {
                 content: msg
               });
               ttsMessages.push(msg);
+            }
+          }
+
+          // Check if we need to set pendingDuplicate based on response.result
+          // (in case CHECK intent didn't set it properly)
+          if (!this.pendingDuplicate && response.result && needsConfirmation) {
+            console.log("🔍 Response indicates duplicate but pendingDuplicate not set, checking results...");
+            // Try to find duplicate task in any CHECK intent
+            for (const item of response.results || []) {
+              if (item.intent === "CHECK" && item.output?.length > 0) {
+                // Try to find any task that might be the duplicate
+                const duplicateTask = item.output.find(t => {
+                  if (t.id === "-1") return true;
+                  if (String(t.id) === "-1") return true;
+                  if (Number(t.id) === -1) return true;
+                  return false;
+                }) || item.output[0]; // Fallback to first task if no id="-1" found
+                
+                if (duplicateTask) {
+                  this.pendingDuplicate = duplicateTask;
+                  console.log("🔍 SET pendingDuplicate from fallback:", this.pendingDuplicate);
+                  break;
+                }
+              }
             }
           }
 
